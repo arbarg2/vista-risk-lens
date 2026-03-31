@@ -1,0 +1,160 @@
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { AITool, ComplianceProfile, calcScore, getScoreColor, costToRiskRatio } from '@/data/tools';
+import { ScoreRing } from './ScoreRing';
+import { Sparkline } from './Sparkline';
+import { ToolRadarChart } from './ToolRadarChart';
+import { CheckCircle2, ExternalLink, ChevronDown } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+
+interface LeaderboardTableProps {
+  tools: AITool[];
+  profile: ComplianceProfile;
+  onCompare: (tool: AITool) => void;
+  compareSelected: string[];
+}
+
+export function LeaderboardTable({ tools, profile, onCompare, compareSelected }: LeaderboardTableProps) {
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  const sorted = [...tools].sort((a, b) => calcScore(b, profile).total - calcScore(a, profile).total);
+
+  return (
+    <div className="glass-card-elevated overflow-hidden">
+      {/* Header */}
+      <div className="grid grid-cols-[2.5rem_1fr_5rem_5rem_5rem_5rem_5rem_3rem] gap-3 px-5 py-3 border-b border-border text-xs font-medium text-muted-foreground uppercase tracking-wider">
+        <span>#</span>
+        <span>Model</span>
+        <span className="text-center">Score</span>
+        <span className="text-center">Perf</span>
+        <span className="text-center">Trust</span>
+        <span className="text-center">Trend</span>
+        <span className="text-center">$/Risk</span>
+        <span></span>
+      </div>
+
+      {/* Rows */}
+      {sorted.map((tool, idx) => {
+        const scores = calcScore(tool, profile);
+        const scoreColor = getScoreColor(scores.total);
+        const isExpanded = expanded === tool.id;
+
+        return (
+          <div key={tool.id}>
+            <motion.div
+              layout
+              className={`grid grid-cols-[2.5rem_1fr_5rem_5rem_5rem_5rem_5rem_3rem] gap-3 px-5 py-4 items-center cursor-pointer transition-colors hover:bg-secondary/40 ${
+                compareSelected.includes(tool.id) ? 'bg-primary/5 border-l-2 border-l-primary' : ''
+              }`}
+              onClick={() => setExpanded(isExpanded ? null : tool.id)}
+            >
+              <span className="font-mono text-sm text-muted-foreground">{idx + 1}</span>
+
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="text-xl">{tool.logo}</span>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-foreground truncate">{tool.name}</span>
+                    {tool.verified && <CheckCircle2 className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
+                  </div>
+                  <span className="text-xs text-muted-foreground">{tool.provider}</span>
+                </div>
+              </div>
+
+              <div className="flex justify-center">
+                <ScoreRing score={scores.total} size={44} strokeWidth={3} />
+              </div>
+
+              <div className="text-center">
+                <span className="font-mono text-sm text-foreground">{scores.perfScore}</span>
+              </div>
+
+              <div className="text-center">
+                <span className={`font-mono text-sm ${scoreColor === 'safe' ? 'text-safe' : scoreColor === 'warning' ? 'text-warning' : 'text-danger'}`}>
+                  {scores.trustScore}
+                </span>
+              </div>
+
+              <div className="flex justify-center">
+                <Sparkline data={tool.trendData} />
+              </div>
+
+              <div className="text-center">
+                <span className="font-mono text-xs text-muted-foreground">${costToRiskRatio(tool, profile)}</span>
+              </div>
+
+              <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+            </motion.div>
+
+            <AnimatePresence>
+              {isExpanded && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="overflow-hidden border-t border-border"
+                >
+                  <div className="px-5 py-5 flex flex-wrap gap-6 items-start bg-secondary/20">
+                    <ToolRadarChart tool={tool} profile={profile} size={180} />
+
+                    <div className="flex flex-col gap-3 flex-1 min-w-[200px]">
+                      <h4 className="text-sm font-semibold text-foreground">Quick Risk Stats</h4>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Data Location</span>
+                          <Badge variant="outline" className="text-xs">{tool.trust.dataSovereignty}</Badge>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Training Data</span>
+                          <Badge variant="outline" className="text-xs">{tool.trust.trainingPrivacy}</Badge>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Latency</span>
+                          <span className="font-mono text-foreground">{tool.performance.latency}ms</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Cost/M tokens</span>
+                          <span className="font-mono text-foreground">${tool.costPerMToken}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">SOC2</span>
+                          <span>{tool.trust.soc2 ? '✅' : '❌'}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">HIPAA</span>
+                          <span>{tool.trust.hipaa ? '✅' : '❌'}</span>
+                        </div>
+                      </div>
+                      <div className="flex gap-2 mt-2">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onCompare(tool); }}
+                          className={`px-3 py-1.5 text-xs rounded-md font-medium transition-colors ${
+                            compareSelected.includes(tool.id)
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                          }`}
+                        >
+                          {compareSelected.includes(tool.id) ? 'Selected for VS' : 'Add to VS'}
+                        </button>
+                        <a
+                          href={tool.policyUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="px-3 py-1.5 text-xs rounded-md font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80 inline-flex items-center gap-1"
+                        >
+                          Policy <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
