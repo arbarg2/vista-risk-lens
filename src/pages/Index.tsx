@@ -1,15 +1,49 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { tools as allTools, ComplianceProfile, AITool } from '@/data/tools';
+import { tools as allTools, ComplianceProfile, AITool, Incident, generateIncident, calcScore, getLetterGrade } from '@/data/tools';
 import { ProfileToggle } from '@/components/ProfileToggle';
-import { AlertsTicker } from '@/components/AlertsTicker';
 import { LeaderboardTable } from '@/components/LeaderboardTable';
 import { ComparisonEngine } from '@/components/ComparisonEngine';
-import { Shield, Zap } from 'lucide-react';
+import { TerminalTicker } from '@/components/TerminalTicker';
+import { IncidentSidebar } from '@/components/IncidentSidebar';
+import { RemediationModal } from '@/components/RemediationModal';
+import { generateBoardReport } from '@/lib/pdfReport';
+import { Shield, Zap, ShieldAlert, FileDown } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 const Index = () => {
   const [profile, setProfile] = useState<ComplianceProfile>('eu-enterprise');
   const [compareList, setCompareList] = useState<string[]>([]);
+  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activeIncident, setActiveIncident] = useState<Incident | null>(null);
+  const seenRef = useRef(false);
+
+  // Background "Shadow AI" feed — generates incidents every 6-12s
+  useEffect(() => {
+    // Seed two so the badge appears immediately
+    if (!seenRef.current) {
+      seenRef.current = true;
+      setIncidents([generateIncident(), generateIncident()]);
+    }
+    const tick = () => {
+      const inc = generateIncident();
+      setIncidents((prev) => [inc, ...prev].slice(0, 50));
+      if (inc.severity === 'critical') {
+        toast.error(`🔴 Crimson Alert · ${inc.toolName}`, {
+          description: `${inc.user} ${inc.action} ${inc.toolName}`,
+          action: { label: 'Review', onClick: () => { setSidebarOpen(true); setActiveIncident(inc); } },
+        });
+      } else if (inc.severity === 'high') {
+        toast.warning(`⚠ ${inc.toolName}`, {
+          description: `${inc.user} ${inc.action} ${inc.toolName}`,
+        });
+      }
+    };
+    const id = setInterval(tick, 7500 + Math.random() * 4000);
+    return () => clearInterval(id);
+  }, []);
 
   const handleCompare = (tool: AITool) => {
     setCompareList((prev) => {
@@ -23,9 +57,15 @@ const Index = () => {
     ? [allTools.find((t) => t.id === compareList[0])!, allTools.find((t) => t.id === compareList[1])!] as [AITool, AITool]
     : null;
 
+  const orgScore = Math.round(
+    [...allTools].sort((a, b) => calcScore(b, profile).total - calcScore(a, profile).total).slice(0, 10)
+      .reduce((s, t) => s + calcScore(t, profile).total, 0) / 10
+  );
+  const grade = getLetterGrade(orgScore);
+  const criticalCount = incidents.filter((i) => i.severity === 'critical').length;
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b border-border">
         <div className="container max-w-7xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -34,27 +74,41 @@ const Index = () => {
             </div>
             <div>
               <h1 className="text-xl font-bold gradient-text">Vigilance AI</h1>
-              <p className="text-xs text-muted-foreground">Risk-Adjusted GenAI Leaderboard</p>
+              <p className="text-xs text-muted-foreground font-mono uppercase tracking-wider">AI Security Posture Management</p>
             </div>
           </div>
-          <ProfileToggle active={profile} onChange={setProfile} />
+          <div className="flex items-center gap-3">
+            <div className={`hidden md:flex flex-col items-center px-3 py-1.5 rounded-lg border bg-${grade.color}/10 border-${grade.color}/30`}>
+              <span className={`text-2xl font-black leading-none text-${grade.color}`}>{grade.grade}</span>
+              <span className="text-[9px] font-mono uppercase tracking-widest text-muted-foreground mt-0.5">{orgScore}/100</span>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => generateBoardReport(allTools, profile)}>
+              <FileDown className="w-4 h-4 mr-1" /> Board Report
+            </Button>
+            <Button variant="outline" size="sm" className="relative" onClick={() => setSidebarOpen(true)}>
+              <ShieldAlert className="w-4 h-4 mr-1" /> Incidents
+              {criticalCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-danger text-danger-foreground text-[10px] font-bold flex items-center justify-center animate-pulse">
+                  {criticalCount}
+                </span>
+              )}
+            </Button>
+            <ProfileToggle active={profile} onChange={setProfile} />
+          </div>
         </div>
       </header>
 
-      {/* Alerts Ticker */}
       <div className="container max-w-7xl mx-auto px-4 mt-4">
-        <AlertsTicker />
+        <TerminalTicker />
       </div>
 
-      {/* Main Content */}
       <main className="container max-w-7xl mx-auto px-4 py-6 flex flex-col gap-6">
-        {/* Stats bar */}
         <motion.div
           key={profile}
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
-          className="flex items-center gap-2 text-sm text-muted-foreground"
+          className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap"
         >
           <Zap className="w-4 h-4 text-primary" />
           <span>
@@ -69,7 +123,6 @@ const Index = () => {
           )}
         </motion.div>
 
-        {/* Leaderboard */}
         <LeaderboardTable
           tools={allTools}
           profile={profile}
@@ -77,7 +130,6 @@ const Index = () => {
           compareSelected={compareList}
         />
 
-        {/* Comparison Engine */}
         <AnimatePresence>
           {compareTools && (
             <ComparisonEngine
@@ -89,10 +141,17 @@ const Index = () => {
         </AnimatePresence>
       </main>
 
-      {/* Footer */}
+      <IncidentSidebar
+        incidents={incidents}
+        open={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        onAction={(inc) => setActiveIncident(inc)}
+      />
+      <RemediationModal incident={activeIncident} onClose={() => setActiveIncident(null)} />
+
       <footer className="border-t border-border mt-12">
-        <div className="container max-w-7xl mx-auto px-4 py-6 text-center text-xs text-muted-foreground">
-          Vigilance AI — Data sourced from public policies & audit reports. Last updated March 2026.
+        <div className="container max-w-7xl mx-auto px-4 py-6 text-center text-xs text-muted-foreground font-mono">
+          Vigilance AI · OWASP LLM Top 10 · NIST AI RMF · EU AI Act ready
         </div>
       </footer>
     </div>

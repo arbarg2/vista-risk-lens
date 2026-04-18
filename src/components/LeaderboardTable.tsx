@@ -3,7 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { AITool, ComplianceProfile, calcScore, getScoreColor, costToRiskRatio } from '@/data/tools';
 import { ScoreRing } from './ScoreRing';
 import { Sparkline } from './Sparkline';
-import { ToolRadarChart } from './ToolRadarChart';
+import { SafetyPerimeter } from './SafetyPerimeter';
+import { OWASPBars } from './OWASPBars';
+import { AIBOMPanel } from './AIBOMPanel';
 import { CheckCircle2, ExternalLink, ChevronDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
@@ -95,38 +97,12 @@ export function LeaderboardTable({ tools, profile, onCompare, compareSelected }:
                   transition={{ duration: 0.3 }}
                   className="overflow-hidden border-t border-border"
                 >
-                  <div className="px-5 py-5 flex flex-wrap gap-6 items-start bg-secondary/20">
-                    <ToolRadarChart tool={tool} profile={profile} size={180} />
-
-                    <div className="flex flex-col gap-3 flex-1 min-w-[200px]">
-                      <h4 className="text-sm font-semibold text-foreground">Quick Risk Stats</h4>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Data Location</span>
-                          <Badge variant="outline" className="text-xs">{tool.trust.dataSovereignty}</Badge>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Training Data</span>
-                          <Badge variant="outline" className="text-xs">{tool.trust.trainingPrivacy}</Badge>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Latency</span>
-                          <span className="font-mono text-foreground">{tool.performance.latency}ms</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Cost/M tokens</span>
-                          <span className="font-mono text-foreground">${tool.costPerMToken}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">SOC2</span>
-                          <span>{tool.trust.soc2 ? '✅' : '❌'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">HIPAA</span>
-                          <span>{tool.trust.hipaa ? '✅' : '❌'}</span>
-                        </div>
-                      </div>
-                      <div className="flex gap-2 mt-2">
+                  <div className="px-5 py-5 grid grid-cols-1 lg:grid-cols-[auto_1fr_1fr] gap-6 items-start bg-secondary/20">
+                    <SafetyPerimeter tool={tool} profile={profile} size={260} />
+                    <OWASPBars tool={tool} />
+                    <div className="flex flex-col gap-3">
+                      <AIBOMPanel tool={tool} />
+                      <div className="flex gap-2 mt-1">
                         <button
                           onClick={(e) => { e.stopPropagation(); onCompare(tool); }}
                           className={`px-3 py-1.5 text-xs rounded-md font-medium transition-colors ${
