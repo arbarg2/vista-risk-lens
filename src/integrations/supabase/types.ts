@@ -14,7 +14,104 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      incidents: {
+        Row: {
+          action: string
+          created_at: string
+          department: string | null
+          id: string
+          incident_code: string
+          profile: string
+          resolved: boolean
+          severity: string
+          tool_id: string
+          tool_name: string
+          user_label: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          department?: string | null
+          id?: string
+          incident_code: string
+          profile: string
+          resolved?: boolean
+          severity: string
+          tool_id: string
+          tool_name: string
+          user_label: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          department?: string | null
+          id?: string
+          incident_code?: string
+          profile?: string
+          resolved?: boolean
+          severity?: string
+          tool_id?: string
+          tool_name?: string
+          user_label?: string
+        }
+        Relationships: []
+      }
+      remediation_actions: {
+        Row: {
+          action: string
+          created_at: string
+          id: string
+          incident_id: string
+          notes: string | null
+          operator: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          id?: string
+          incident_id: string
+          notes?: string | null
+          operator?: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          id?: string
+          incident_id?: string
+          notes?: string | null
+          operator?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "remediation_actions_incident_id_fkey"
+            columns: ["incident_id"]
+            isOneToOne: false
+            referencedRelation: "incidents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tool_overrides: {
+        Row: {
+          data: Json
+          source: string
+          tool_id: string
+          updated_at: string
+        }
+        Insert: {
+          data: Json
+          source?: string
+          tool_id: string
+          updated_at?: string
+        }
+        Update: {
+          data?: Json
+          source?: string
+          tool_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
