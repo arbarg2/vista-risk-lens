@@ -6,8 +6,10 @@ import { Sparkline } from './Sparkline';
 import { SafetyPerimeter } from './SafetyPerimeter';
 import { OWASPBars } from './OWASPBars';
 import { AIBOMPanel } from './AIBOMPanel';
-import { CheckCircle2, ExternalLink, ChevronDown } from 'lucide-react';
+import { CheckCircle2, ExternalLink, ChevronDown, RefreshCw, Sparkles } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface LeaderboardTableProps {
   tools: AITool[];
