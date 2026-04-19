@@ -1,7 +1,16 @@
 import jsPDF from 'jspdf';
 import { AITool, ComplianceProfile, calcScore, getLetterGrade, calcOwaspScore } from '@/data/tools';
+import { fetchAuditTrail, type RemediationRecord } from '@/lib/incidentStore';
+import { supabase } from '@/integrations/supabase/client';
 
-export function generateBoardReport(tools: AITool[], profile: ComplianceProfile) {
+export async function generateBoardReport(tools: AITool[], profile: ComplianceProfile) {
+  // Pull audit trail in parallel with PDF setup
+  const [audit, incidentRows] = await Promise.all([
+    fetchAuditTrail(50),
+    supabase.from('incidents').select('id,incident_code,tool_name,severity,created_at,user_label').order('created_at', { ascending: false }).limit(50).then((r) => (r.data ?? []) as any[]),
+  ]);
+  const incidentMap = new Map<string, any>();
+  incidentRows.forEach((i) => incidentMap.set(i.id, i));
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   const W = doc.internal.pageSize.getWidth();
   const H = doc.internal.pageSize.getHeight();
