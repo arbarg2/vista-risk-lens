@@ -1,13 +1,15 @@
 import { Incident } from '@/data/tools';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldAlert, Activity, X } from 'lucide-react';
+import { ShieldAlert, Activity, X, Cloud } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
+type IncidentWithDb = Incident & { dbId?: string };
+
 interface Props {
-  incidents: Incident[];
+  incidents: IncidentWithDb[];
   open: boolean;
   onClose: () => void;
-  onAction: (incident: Incident) => void;
+  onAction: (incident: IncidentWithDb) => void;
 }
 
 const sevStyles: Record<Incident['severity'], string> = {
