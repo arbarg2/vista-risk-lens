@@ -20,6 +20,33 @@ interface LeaderboardTableProps {
 
 export function LeaderboardTable({ tools, profile, onCompare, compareSelected }: LeaderboardTableProps) {
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState<string | null>(null);
+  const [overrides, setOverrides] = useState<Record<string, { data: any; updated_at: string }>>({});
+
+  const handleRefreshTrust = async (e: React.MouseEvent, tool: AITool) => {
+    e.stopPropagation();
+    setRefreshing(tool.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('refresh-tool-trust', {
+        body: { toolId: tool.id, toolName: tool.name, provider: tool.provider, policyUrl: tool.policyUrl },
+      });
+      if (error || !data?.success) {
+        const msg = (data as any)?.error ?? error?.message ?? 'Refresh failed';
+        if (msg.includes('Rate limit')) toast.error('Rate limit hit', { description: 'Please retry in a moment.' });
+        else if (msg.includes('credits')) toast.error('AI credits exhausted', { description: 'Add funds in Workspace > Usage.' });
+        else toast.error('Trust refresh failed', { description: msg });
+        return;
+      }
+      setOverrides((prev) => ({ ...prev, [tool.id]: { data: data.data, updated_at: new Date().toISOString() } }));
+      toast.success(`✓ Trust signals refreshed for ${tool.name}`, {
+        description: data.data.summary,
+      });
+    } catch (err) {
+      toast.error('Trust refresh failed', { description: err instanceof Error ? err.message : 'Unknown error' });
+    } finally {
+      setRefreshing(null);
+    }
+  };
 
   const sorted = [...tools].sort((a, b) => calcScore(b, profile).total - calcScore(a, profile).total);
 
