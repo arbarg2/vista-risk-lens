@@ -84,9 +84,14 @@ export function LeaderboardTable({ tools, profile, onCompare, compareSelected }:
               <div className="flex items-center gap-3 min-w-0">
                 <span className="text-xl">{tool.logo}</span>
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold text-foreground truncate">{tool.name}</span>
                     {tool.verified && <CheckCircle2 className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
+                    {overrides[tool.id] && (
+                      <span className="inline-flex items-center gap-1 text-[9px] font-mono uppercase tracking-widest text-primary bg-primary/10 border border-primary/30 px-1.5 py-0.5 rounded">
+                        <Sparkles className="w-2.5 h-2.5" /> AI-Refreshed
+                      </span>
+                    )}
                   </div>
                   <span className="text-xs text-muted-foreground">{tool.provider}</span>
                 </div>
@@ -131,7 +136,19 @@ export function LeaderboardTable({ tools, profile, onCompare, compareSelected }:
                     <OWASPBars tool={tool} />
                     <div className="flex flex-col gap-3">
                       <AIBOMPanel tool={tool} />
-                      <div className="flex gap-2 mt-1">
+                      {overrides[tool.id] && (
+                        <div className="text-[11px] font-mono text-primary bg-primary/5 border border-primary/20 rounded-md px-3 py-2">
+                          <div className="flex items-center gap-1.5 mb-1">
+                            <Sparkles className="w-3 h-3" />
+                            <span className="uppercase tracking-widest">Last refreshed · via Gemini 2.5 Flash</span>
+                          </div>
+                          <p className="text-foreground/80 text-[11px] leading-snug">{overrides[tool.id].data.summary}</p>
+                          <p className="text-muted-foreground mt-1 text-[10px]">
+                            Confidence: {overrides[tool.id].data.confidence} · Retention: {overrides[tool.id].data.dataRetentionDays}d · SOC2: {overrides[tool.id].data.soc2 ? '✓' : '✗'} · EU: {overrides[tool.id].data.euHosting ? '✓' : '✗'}
+                          </p>
+                        </div>
+                      )}
+                      <div className="flex gap-2 mt-1 flex-wrap">
                         <button
                           onClick={(e) => { e.stopPropagation(); onCompare(tool); }}
                           className={`px-3 py-1.5 text-xs rounded-md font-medium transition-colors ${
@@ -141,6 +158,14 @@ export function LeaderboardTable({ tools, profile, onCompare, compareSelected }:
                           }`}
                         >
                           {compareSelected.includes(tool.id) ? 'Selected for VS' : 'Add to VS'}
+                        </button>
+                        <button
+                          onClick={(e) => handleRefreshTrust(e, tool)}
+                          disabled={refreshing === tool.id}
+                          className="px-3 py-1.5 text-xs rounded-md font-medium bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20 inline-flex items-center gap-1.5 disabled:opacity-50"
+                        >
+                          <RefreshCw className={`w-3 h-3 ${refreshing === tool.id ? 'animate-spin' : ''}`} />
+                          {refreshing === tool.id ? 'Refreshing…' : 'Refresh trust (AI)'}
                         </button>
                         <a
                           href={tool.policyUrl}
