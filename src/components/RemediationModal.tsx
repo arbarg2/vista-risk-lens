@@ -2,9 +2,10 @@ import { Incident, tools } from '@/data/tools';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Ban, MessageSquareWarning, ArrowRightLeft } from 'lucide-react';
 import { toast } from 'sonner';
+import { logRemediation } from '@/lib/incidentStore';
 
 interface Props {
-  incident: Incident | null;
+  incident: (Incident & { dbId?: string }) | null;
   onClose: () => void;
 }
 
@@ -15,9 +16,12 @@ export function RemediationModal({ incident, onClose }: Props) {
     .filter((t) => t.id !== incident.toolId && t.trust.soc2 && t.trust.encryptionAtRest && t.category)
     .sort((a, b) => (a.id === 'lovable' ? -1 : 0))[0];
 
-  const handle = (action: string) => {
-    toast.success(`✓ Remediation applied: ${action}`, {
-      description: `Incident ${incident.id} — ${incident.toolName}`,
+  const handle = async (action: 'block' | 'justify' | 'redirect', label: string, notes: string) => {
+    if (incident.dbId) {
+      await logRemediation(incident.dbId, action, notes);
+    }
+    toast.success(`✓ Remediation applied: ${label}`, {
+      description: `Incident ${incident.id} — ${incident.toolName} · logged to audit trail`,
     });
     onClose();
   };
@@ -28,21 +32,21 @@ export function RemediationModal({ incident, onClose }: Props) {
       title: 'Block Access',
       desc: `Add ${incident.toolName} to org-wide blocklist via SSO/proxy.`,
       color: 'text-danger border-danger/40 hover:bg-danger/10',
-      onClick: () => handle('Blocked at SSO gateway'),
+      onClick: () => handle('block', 'Blocked at SSO gateway', `Blocked ${incident.toolName} for ${incident.user}`),
     },
     {
       icon: MessageSquareWarning,
       title: 'Request Justification',
       desc: `Send compliance form to ${incident.user}. Logs require sign-off.`,
       color: 'text-warning border-warning/40 hover:bg-warning/10',
-      onClick: () => handle('Justification request sent'),
+      onClick: () => handle('justify', 'Justification request sent', `Justification requested from ${incident.user} for ${incident.toolName}`),
     },
     {
       icon: ArrowRightLeft,
       title: 'Auto-Redirect',
       desc: `Reroute ${incident.user} to approved alternative: ${approvedAlt?.name ?? 'ChatGPT Enterprise'}.`,
       color: 'text-safe border-safe/40 hover:bg-safe/10',
-      onClick: () => handle(`Redirected to ${approvedAlt?.name ?? 'approved tool'}`),
+      onClick: () => handle('redirect', `Redirected to ${approvedAlt?.name ?? 'approved tool'}`, `Redirected ${incident.user} from ${incident.toolName} to ${approvedAlt?.name ?? 'approved alt'}`),
     },
   ];
 

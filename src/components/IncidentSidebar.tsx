@@ -1,13 +1,15 @@
 import { Incident } from '@/data/tools';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldAlert, Activity, X } from 'lucide-react';
+import { ShieldAlert, Activity, X, Cloud } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
+type IncidentWithDb = Incident & { dbId?: string };
+
 interface Props {
-  incidents: Incident[];
+  incidents: IncidentWithDb[];
   open: boolean;
   onClose: () => void;
-  onAction: (incident: Incident) => void;
+  onAction: (incident: IncidentWithDb) => void;
 }
 
 const sevStyles: Record<Incident['severity'], string> = {
@@ -41,7 +43,12 @@ export function IncidentSidebar({ incidents, open, onClose, onAction }: Props) {
                 <ShieldAlert className="w-5 h-5 text-primary" />
                 <div>
                   <h3 className="font-bold text-foreground">Security Incidents</h3>
-                  <p className="text-xs text-muted-foreground font-mono">Shadow AI Interceptor · Live</p>
+                  <p className="text-xs text-muted-foreground font-mono flex items-center gap-1">
+                    Shadow AI Interceptor
+                    <span className="inline-flex items-center gap-1 text-safe">
+                      · <Cloud className="w-3 h-3" /> Synced
+                    </span>
+                  </p>
                 </div>
               </div>
               <button onClick={onClose} className="p-1 rounded-md hover:bg-secondary transition-colors">
