@@ -187,6 +187,73 @@ export async function generateBoardReport(tools: AITool[], profile: CompliancePr
     });
   }
 
+
+  // ── Audit Trail page (live data from Lovable Cloud) ───
+  doc.addPage();
+  doc.setFillColor(15, 23, 42);
+  doc.rect(0, 0, W, H, 'F');
+  doc.setFillColor(16, 185, 129);
+  doc.rect(0, 0, W, 6, 'F');
+  doc.setTextColor(226, 232, 240);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(20);
+  doc.text('Remediation Audit Trail', M, 60);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(148, 163, 184);
+  doc.text(`Last ${audit.length} remediation actions · Source: Lovable Cloud`, M, 80);
+
+  y = 110;
+  if (audit.length === 0) {
+    doc.setTextColor(148, 163, 184);
+    doc.text('No remediation actions recorded yet. Use "Take Action" on a Shadow AI incident to populate this trail.', M, y);
+  } else {
+    doc.setFillColor(30, 41, 59);
+    doc.rect(M, y - 12, W - M * 2, 18, 'F');
+    doc.setFontSize(8);
+    doc.setTextColor(148, 163, 184);
+    doc.setFont('helvetica', 'bold');
+    doc.text('TIME', M + 6, y);
+    doc.text('ACTION', M + 100, y);
+    doc.text('TOOL', M + 180, y);
+    doc.text('USER', M + 320, y);
+    doc.text('OPERATOR', M + 440, y);
+    y += 6;
+
+    doc.setFont('helvetica', 'normal');
+    audit.forEach((a: RemediationRecord, i) => {
+      y += 16;
+      if (y > H - 80) {
+        doc.addPage();
+        doc.setFillColor(15, 23, 42);
+        doc.rect(0, 0, W, H, 'F');
+        y = 60;
+      }
+      if (i % 2 === 0) {
+        doc.setFillColor(22, 32, 52);
+        doc.rect(M, y - 11, W - M * 2, 16, 'F');
+      }
+      const inc = incidentMap.get(a.incident_id);
+      const actionColor: Record<string, [number, number, number]> = {
+        block: [239, 68, 68], justify: [245, 158, 11], redirect: [16, 185, 129],
+      };
+      const [ar, ag, ab] = actionColor[a.action] ?? [148, 163, 184];
+      doc.setFontSize(8);
+      doc.setTextColor(148, 163, 184);
+      doc.text(new Date(a.created_at).toLocaleString().slice(0, 17), M + 6, y);
+      doc.setTextColor(ar, ag, ab);
+      doc.setFont('helvetica', 'bold');
+      doc.text(a.action.toUpperCase(), M + 100, y);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(226, 232, 240);
+      doc.text((inc?.tool_name ?? '—').substring(0, 24), M + 180, y);
+      doc.setTextColor(203, 213, 225);
+      doc.text((inc?.user_label ?? '—').substring(0, 22), M + 320, y);
+      doc.setTextColor(148, 163, 184);
+      doc.text((a.operator ?? '—').substring(0, 18), M + 440, y);
+    });
+  }
+
   // Footer
   const pageCount = doc.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
