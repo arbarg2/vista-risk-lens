@@ -116,17 +116,8 @@
     animation: ticker 30s linear infinite;
   }
 
-  .ticker-vertical {
-    animation: ticker-v 40s linear infinite;
-  }
-
   @keyframes ticker {
     0% { transform: translateX(0); }
     100% { transform: translateX(-50%); }
-  }
-
-  @keyframes ticker-v {
-    0% { transform: translateY(0); }
-    100% { transform: translateY(-50%); }
   }
 }
