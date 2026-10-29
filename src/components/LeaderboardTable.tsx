@@ -7,6 +7,8 @@ import { Sparkline } from './Sparkline';
 import { FlashCell } from './FlashCell';
 import { StatusSelect } from './StatusSelect';
 import { ExpandedToolPanel } from './ExpandedToolPanel';
+import { ConfidenceBadge, PolicyFitBadge } from './CredibilityBadges';
+import { PROFILE_LABELS } from '@/lib/posture';
 import { CheckCircle2, ChevronDown, ShieldAlert } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -31,7 +33,7 @@ const COLS: { key: string; label: string; title: string }[] = [
 
 export function LeaderboardTable({ tools, onCompare, compareSelected, driver, className }: LeaderboardTableProps) {
   const [expanded, setExpanded] = useState<string | null>(null);
-  const { scores, statuses, setStatus, weights } = usePosture();
+  const { scores, statuses, setStatus, weights, confidence, policy, profile } = usePosture();
   const weightSum = weights.performance + weights.sovereignty + weights.privacy + weights.security + weights.owasp;
   const perfPct = weightSum > 0 ? Math.round((weights.performance / weightSum) * 100) : 0;
   const trustPct = weightSum > 0 ? 100 - perfPct : 0;
@@ -58,8 +60,8 @@ export function LeaderboardTable({ tools, onCompare, compareSelected, driver, cl
           <div className={cn(GRID, 'px-4 pt-1.5 pb-2.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider')}>
             <span>#</span>
             <span>Model</span>
-            <span>Status</span>
-            <span className="text-center">Score</span>
+            <span title="Approval status and fit with the selected compliance profile">Status · Fit</span>
+            <span className="text-center" title="Total score and confidence in the underlying evidence">Score</span>
             {COLS.map((c) => (
               <span
                 key={c.key}
@@ -112,12 +114,14 @@ export function LeaderboardTable({ tools, onCompare, compareSelected, driver, cl
                     </div>
                   </div>
 
-                  <div>
+                  <div className="flex flex-col items-start gap-1">
                     <StatusSelect value={statuses[tool.id]} onChange={(v) => setStatus(tool.id, v)} toolName={tool.name} />
+                    <PolicyFitBadge fit={policy[tool.id].fit} checks={policy[tool.id].checks} profileLabel={PROFILE_LABELS[profile]} />
                   </div>
 
-                  <div className="flex justify-center">
-                    <ScoreRing score={s.total} size={40} strokeWidth={3} />
+                  <div className="flex flex-col items-center gap-1">
+                    <ScoreRing score={s.total} size={36} strokeWidth={3} />
+                    <ConfidenceBadge result={confidence[tool.id]} compact />
                   </div>
 
                   <FlashCell value={s.perfScore} className="text-foreground" />

@@ -4,21 +4,21 @@ import type { Confidence, ConfidenceResult, PolicyCheck, PolicyFit, RuleOutcome 
 import { cn } from '@/lib/utils';
 
 export const CONFIDENCE_META: Record<Confidence, { label: string; short: string; cls: string; icon: typeof ShieldCheck }> = {
-  high: { label: 'High', short: 'HIGH', cls: 'bg-safe/12 text-safe border-safe/30', icon: ShieldCheck },
-  medium: { label: 'Medium', short: 'MED', cls: 'bg-warning/12 text-warning border-warning/30', icon: ShieldQuestion },
-  low: { label: 'Low', short: 'LOW', cls: 'bg-danger/12 text-danger border-danger/30', icon: ShieldAlert },
+  high: { label: 'High', short: 'HIGH', cls: 'bg-safe/10 text-safe border-safe/30', icon: ShieldCheck },
+  medium: { label: 'Medium', short: 'MED', cls: 'bg-warning/10 text-warning border-warning/30', icon: ShieldQuestion },
+  low: { label: 'Low', short: 'LOW', cls: 'bg-danger/10 text-danger border-danger/30', icon: ShieldAlert },
 };
 
 export const FIT_META: Record<PolicyFit, { label: string; cls: string; icon: typeof CheckCircle2 }> = {
-  compliant: { label: 'Compliant', cls: 'bg-safe/12 text-safe border-safe/30', icon: CheckCircle2 },
-  conditional: { label: 'Conditional', cls: 'bg-warning/12 text-warning border-warning/30', icon: AlertTriangle },
-  'non-compliant': { label: 'Non-Compliant', cls: 'bg-danger/12 text-danger border-danger/30', icon: XCircle },
+  compliant: { label: 'Compliant', cls: 'bg-safe/10 text-safe border-safe/30', icon: CheckCircle2 },
+  conditional: { label: 'Conditional', cls: 'bg-warning/10 text-warning border-warning/30', icon: AlertTriangle },
+  'non-compliant': { label: 'Non-Compliant', cls: 'bg-danger/10 text-danger border-danger/30', icon: XCircle },
 };
 
 export const OUTCOME_META: Record<RuleOutcome, { label: string; cls: string }> = {
-  pass: { label: 'PASSED', cls: 'bg-safe/12 text-safe' },
-  conditional: { label: 'CONDITIONAL', cls: 'bg-warning/12 text-warning' },
-  fail: { label: 'FAILED', cls: 'bg-danger/12 text-danger' },
+  pass: { label: 'PASSED', cls: 'bg-safe/10 text-safe' },
+  conditional: { label: 'CONDITIONAL', cls: 'bg-warning/10 text-warning' },
+  fail: { label: 'FAILED', cls: 'bg-danger/10 text-danger' },
 };
 
 export function ConfidenceBadge({ result, compact = false, className }: { result: ConfidenceResult; compact?: boolean; className?: string }) {
