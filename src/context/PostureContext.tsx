@@ -5,6 +5,7 @@ import {
   DEFAULT_WEIGHTS, approvedPosture, cvePenaltyFor, defaultStatus, packageRisk, scoreTool,
   type ApprovalStatus, type PolicyWeights, type ThreatItem, type ToolScore,
 } from '@/lib/posture';
+import { dependencyExposure } from '@/data/enrichment';
 import { readThreatCache, syncThreats, type SourceState } from '@/lib/threatFeed';
 
 // ─── Types ──────────────────────────────────────────────
@@ -185,11 +186,13 @@ export function PostureProvider({ children }: { children: ReactNode }) {
   const threatsByTool = useMemo(() => {
     const out: Record<string, ThreatItem[]> = {};
     for (const t of tools) {
-      const exp = t.category; // placeholder for type narrowing
-      void exp;
+      const exp = dependencyExposure(t);
+      out[t.id] = threats
+        .filter((th) => (exp[th.pkg] ?? 0) >= 0.2)
+        .sort((a, b) => b.score * (exp[b.pkg] ?? 0) - a.score * (exp[a.pkg] ?? 0));
     }
     return out;
-  }, []);
+  }, [threats]);
   const posture = useMemo(() => approvedPosture(tools, statuses, scores), [statuses, scores]);
 
   // ─── Live threat sync ────────────────────────────────
