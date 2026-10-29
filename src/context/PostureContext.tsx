@@ -2,8 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { toast } from 'sonner';
 import { tools, type AITool, type ComplianceProfile } from '@/data/tools';
 import {
-  DEFAULT_WEIGHTS, approvedPosture, cvePenaltyFor, defaultStatus, packageRisk, scoreTool,
-  type ApprovalStatus, type PolicyWeights, type ThreatItem, type ToolScore,
+  DEFAULT_WEIGHTS, approvedPosture, confidenceFor, cvePenaltyFor, defaultStatus, packageRisk, policyChecks, policyFit, scoreTool,
+  type ApprovalStatus, type ConfidenceResult, type PolicyCheck, type PolicyFit, type PolicyWeights, type ThreatItem, type ToolScore,
 } from '@/lib/posture';
 import { dependencyExposure } from '@/data/enrichment';
 import { readThreatCache, syncThreats, type SourceState } from '@/lib/threatFeed';
@@ -57,6 +57,10 @@ interface PostureState {
   setStatus: (id: string, s: ApprovalStatus) => void;
   scores: Record<string, ToolScore>;
   posture: ReturnType<typeof approvedPosture>;
+  /** True when NVD or OSV.dev data is live/cached and synced within the last 24h. */
+  telemetryActive: boolean;
+  confidence: Record<string, ConfidenceResult>;
+  policy: Record<string, { checks: PolicyCheck[]; fit: PolicyFit }>;
   threats: ThreatItem[];
   threatsByTool: Record<string, ThreatItem[]>;
   sources: Record<'NVD' | 'OSV', SourceStatus>;
@@ -195,6 +199,24 @@ export function PostureProvider({ children }: { children: ReactNode }) {
   }, [threats]);
   const posture = useMemo(() => approvedPosture(tools, statuses, scores), [statuses, scores]);
 
+  const telemetryActive = useMemo(() => {
+    const ok = (st: SourceState) => st === 'live' || st === 'cached';
+    return (ok(sources.NVD.state) || ok(sources.OSV.state)) && lastSync !== null && Date.now() - lastSync < 86_400_000;
+  }, [sources, lastSync]);
+  const confidence = useMemo(() => {
+    const out: Record<string, ConfidenceResult> = {};
+    for (const t of tools) out[t.id] = confidenceFor(t, telemetryActive);
+    return out;
+  }, [telemetryActive]);
+  const policy = useMemo(() => {
+    const out: Record<string, { checks: PolicyCheck[]; fit: PolicyFit }> = {};
+    for (const t of tools) {
+      const checks = policyChecks(t, profile, scores[t.id]);
+      out[t.id] = { checks, fit: policyFit(checks) };
+    }
+    return out;
+  }, [profile, scores]);
+
   // ─── Live threat sync ────────────────────────────────
   const runSync = useCallback((force: boolean) => {
     if (!force) {
@@ -310,7 +332,7 @@ export function PostureProvider({ children }: { children: ReactNode }) {
 
   const value: PostureState = {
     profile, setProfile, weights, isCustomWeights, setWeights, resetWeights,
-    statuses, setStatus, scores, posture, threats, threatsByTool, sources, lastSync, syncing,
+    statuses, setStatus, scores, posture, telemetryActive, confidence, policy, threats, threatsByTool, sources, lastSync, syncing,
     resync: () => runSync(true), feed, telemetry, incidents, resolveIncident, resolveAll, bestApprovedAlternative,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
