@@ -16,9 +16,10 @@ interface LeaderboardTableProps {
   compareSelected: string[];
   /** Metric key that drove the last profile shift, highlighted in the header. */
   driver?: string | null;
+  className?: string;
 }
 
-const GRID = 'grid grid-cols-[1.75rem_minmax(9rem,1fr)_7.75rem_3.25rem_2.75rem_2.75rem_2.75rem_2.75rem_2.75rem_3.5rem_1rem] gap-2 items-center';
+const GRID = 'grid grid-cols-[1.75rem_minmax(9rem,1fr)_7.75rem_3.25rem_4.75rem_2.75rem_2.75rem_2.75rem_2.75rem_3.5rem_1rem] gap-2 items-center';
 
 const COLS: { key: string; label: string; title: string }[] = [
   { key: 'perf', label: 'Perf', title: 'Performance (accuracy, latency, throughput)' },
@@ -28,17 +29,33 @@ const COLS: { key: string; label: string; title: string }[] = [
   { key: 'owasp', label: 'OWASP', title: 'OWASP LLM Top 10 resilience' },
 ];
 
-export function LeaderboardTable({ tools, onCompare, compareSelected, driver }: LeaderboardTableProps) {
+export function LeaderboardTable({ tools, onCompare, compareSelected, driver, className }: LeaderboardTableProps) {
   const [expanded, setExpanded] = useState<string | null>(null);
-  const { scores, statuses, setStatus } = usePosture();
+  const { scores, statuses, setStatus, weights } = usePosture();
+  const weightSum = weights.performance + weights.sovereignty + weights.privacy + weights.security + weights.owasp;
+  const perfPct = weightSum > 0 ? Math.round((weights.performance / weightSum) * 100) : 0;
+  const trustPct = weightSum > 0 ? 100 - perfPct : 0;
 
   const sorted = [...tools].sort((a, b) => scores[b.id].total - scores[a.id].total);
 
   return (
-    <div className="glass-card-elevated overflow-hidden">
-      <div className="overflow-x-auto">
-        <div className="min-w-[740px]">
-          <div className={cn(GRID, 'px-4 py-3 border-b border-border text-[10px] font-semibold text-muted-foreground uppercase tracking-wider')}>
+    <div className={cn('glass-card-elevated overflow-hidden flex flex-col min-h-0', className)}>
+      <div className="flex-1 min-h-0 overflow-auto overscroll-contain">
+        <div className="min-w-[760px]">
+          <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-md border-b border-border">
+          <div className={cn(GRID, 'px-4 pt-2.5 text-[9px] font-semibold uppercase tracking-wider')} aria-hidden>
+            <span className="col-span-4" />
+            <div className="flex flex-col items-center gap-1 text-primary" title="Share of the total score from Performance under the current policy">
+              <span className="leading-none">Performance <span className="font-mono">{perfPct}%</span></span>
+              <span className="w-full h-0.5 rounded-full bg-primary/70" />
+            </div>
+            <div className="col-span-4 flex flex-col items-center gap-1 text-safe" title="Share of the total score from Trust metrics under the current policy">
+              <span className="leading-none">Trust Metrics <span className="font-mono">{trustPct}%</span></span>
+              <span className="w-full h-0.5 rounded-full bg-safe/40" />
+            </div>
+            <span className="col-span-2" />
+          </div>
+          <div className={cn(GRID, 'px-4 pt-1.5 pb-2.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider')}>
             <span>#</span>
             <span>Model</span>
             <span>Status</span>
@@ -47,7 +64,7 @@ export function LeaderboardTable({ tools, onCompare, compareSelected, driver }: 
               <span
                 key={c.key}
                 title={c.title}
-                className={cn('text-center rounded transition-colors duration-500', driver === c.key && 'text-primary bg-primary/10')}
+                className={cn('text-center rounded transition-colors duration-500', c.key !== 'perf' && 'border-l border-border/60 first-of-type:border-l-0', driver === c.key && 'text-primary bg-primary/10')}
               >
                 {c.label}
               </span>
@@ -55,9 +72,10 @@ export function LeaderboardTable({ tools, onCompare, compareSelected, driver }: 
             <span className="text-center">Trend</span>
             <span />
           </div>
+          </div>
 
           {sorted.length === 0 && (
-            <div className="px-5 py-12 text-center text-sm text-muted-foreground">No tools in this view yet.</div>
+            <div className="px-5 py-12 text-center text-sm text-muted-foreground">No tools match this view. Try a different search or filter.</div>
           )}
 
           {sorted.map((tool, idx) => {
