@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { tools } from '@/data/tools';
-import { DEFAULT_WEIGHTS, confidenceFor, policyChecks, policyFit, scoreTool } from './posture';
+import { DEFAULT_WEIGHTS, confidenceFor, packageRisk, policyChecks, policyFit, scoreTool } from './posture';
 
 const byId = (id: string) => tools.find((t) => t.id === id)!;
 const fitFor = (id: string, profile: Parameters<typeof policyChecks>[1], cvePenalty = 0) => {
@@ -48,5 +48,14 @@ describe('policy fit', () => {
   });
   it('severe live CVE exposure downgrades an otherwise compliant tool', () => {
     expect(fitFor('azure-openai', 'us-fedramp', 20)).toBe('conditional');
+  });
+});
+
+describe('CISA KEV weighting', () => {
+  it('an actively exploited CVE counts twice as much toward package risk', () => {
+    const base = { id: 'CVE-1', aliases: [], pkg: 'langchain' as const, score: 9, severity: 'CRITICAL' as const, published: new Date().toISOString(), summary: '', source: 'NVD' as const, url: '' };
+    const normal = packageRisk([base]).langchain!;
+    const exploited = packageRisk([{ ...base, exploited: true }]).langchain!;
+    expect(exploited).toBeCloseTo(normal * 2);
   });
 });
