@@ -67,11 +67,7 @@ export function LeaderboardTable({ tools, onCompare, compareSelected, driver }: 
             return (
               <motion.div key={tool.id} layout transition={{ type: 'spring', stiffness: 500, damping: 40 }} className="border-b border-border/50 last:border-b-0">
                 <div
-                  role="button"
-                  tabIndex={0}
-                  aria-expanded={isExpanded}
                   onClick={() => setExpanded(isExpanded ? null : tool.id)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(isExpanded ? null : tool.id); } }}
                   className={cn(
                     GRID,
                     'px-4 py-3 cursor-pointer transition-colors hover:bg-secondary/40 outline-none focus-visible:bg-secondary/40',
@@ -116,7 +112,14 @@ export function LeaderboardTable({ tools, onCompare, compareSelected, driver }: 
                     <Sparkline data={tool.trendData} />
                   </div>
 
-                  <ChevronDown className={cn('w-4 h-4 text-muted-foreground transition-transform', isExpanded && 'rotate-180')} />
+                  <button
+                    aria-expanded={isExpanded}
+                    aria-label={`${isExpanded ? 'Hide' : 'Show'} details for ${tool.name}`}
+                    onClick={(e) => { e.stopPropagation(); setExpanded(isExpanded ? null : tool.id); }}
+                    className="rounded outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <ChevronDown className={cn('w-4 h-4 text-muted-foreground transition-transform', isExpanded && 'rotate-180')} />
+                  </button>
                 </div>
 
                 <AnimatePresence initial={false}>
