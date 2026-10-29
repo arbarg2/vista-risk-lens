@@ -20,7 +20,7 @@ export function buildCycloneDX(tool: AITool, ctx: Ctx) {
     version: 1,
     metadata: {
       timestamp: new Date().toISOString(),
-      tools: { components: [{ type: 'application', name: 'Vigilance AI', version: '2.4' }] },
+      tools: { components: [{ type: 'application', name: 'VigilAI', version: '2.4' }] },
       component: { type: 'machine-learning-model', 'bom-ref': ref, name: tool.name },
       properties: [
         { name: 'vigilance:complianceProfile', value: ctx.profile },
@@ -96,7 +96,7 @@ export function buildSPDX(tool: AITool, ctx: Ctx) {
     SPDXID: 'SPDXRef-DOCUMENT',
     name: `AIBOM-${tool.name}`,
     documentNamespace: `https://vigilance.ai/spdx/${slug(tool.id)}-${uuid()}`,
-    creationInfo: { created: new Date().toISOString(), creators: ['Tool: Vigilance AI-2.4', `Organization: ${tool.provider}`] },
+    creationInfo: { created: new Date().toISOString(), creators: ['Tool: VigilAI-2.4', `Organization: ${tool.provider}`] },
     packages: [
       {
         SPDXID: modelId,
@@ -113,7 +113,7 @@ export function buildSPDX(tool: AITool, ctx: Ctx) {
         annotations: [
           {
             annotationType: 'REVIEW',
-            annotator: 'Tool: Vigilance AI',
+            annotator: 'Tool: VigilAI',
             annotationDate: new Date().toISOString(),
             comment: `profile=${ctx.profile}; status=${ctx.status}; posture=${ctx.score.total}; trust=${ctx.score.trustScore}; cvePenalty=${ctx.score.cvePenalty}; owasp=${ctx.score.owaspScore}`,
           },
