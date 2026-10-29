@@ -226,3 +226,10 @@ export function readinessLabel(pct: number): 'Ready' | 'Partial' | 'Gap' {
   if (pct >= 50) return 'Partial';
   return 'Gap';
 }
+
+/** Dollars per million tokens per posture point (lower = better value for the compliance risk taken). */
+export function costToRisk(tool: AITool, score: ToolScore): string {
+  if (tool.costPerMToken === 0) return 'seat-based';
+  if (score.total === 0) return '∞';
+  return `$${((tool.costPerMToken / score.total) * 100).toFixed(2)}`;
+}
