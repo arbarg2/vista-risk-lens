@@ -25,7 +25,7 @@ function GapBar({ label, a, b }: { label: string; a: number; b: number }) {
   );
 }
 
-export function ComparisonEngine({ tools: [a, b], onClose }: { tools: [AITool, AITool]; onClose: () => void }) {
+export function ComparisonEngine({ tools: [a, b], onClose, embedded = false }: { tools: [AITool, AITool]; onClose?: () => void; embedded?: boolean }) {
   const { scores, profile } = usePosture();
   const sa = scores[a.id];
   const sb = scores[b.id];
@@ -35,15 +35,19 @@ export function ComparisonEngine({ tools: [a, b], onClose }: { tools: [AITool, A
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 20 }}
-      className="glass-card-elevated p-5"
+      className={embedded ? '' : 'glass-card-elevated p-5'}
       aria-label="Risk gap analysis"
     >
-      <div className="flex items-center justify-between mb-5">
-        <h3 className="text-base font-bold text-foreground">Risk Gap Analysis</h3>
-        <button onClick={onClose} className="p-1 rounded-md hover:bg-secondary transition-colors" aria-label="Close comparison">
-          <X className="w-4 h-4 text-muted-foreground" />
-        </button>
-      </div>
+      {!embedded && (
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-base font-bold text-foreground">Risk Gap Analysis</h3>
+          {onClose && (
+            <button onClick={onClose} className="p-1 rounded-md hover:bg-secondary transition-colors" aria-label="Close comparison">
+              <X className="w-4 h-4 text-muted-foreground" />
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-6 items-center">
         <div className="flex flex-col gap-5">
@@ -70,7 +74,7 @@ export function ComparisonEngine({ tools: [a, b], onClose }: { tools: [AITool, A
           </div>
         </div>
         <div className="flex justify-center">
-          <ToolRadarChart score={sa} compareScore={sb} threshold={PROFILE_THRESHOLD[profile]} size={240} />
+          <ToolRadarChart score={sa} compareScore={sb} threshold={PROFILE_THRESHOLD[profile]} size={embedded ? 320 : 240} />
         </div>
       </div>
     </motion.section>
