@@ -12,7 +12,7 @@ const SEV_CLS = {
 };
 
 export function IncidentsSheet() {
-  const { incidents, resolveIncident, resolveAll, setStatus, bestApprovedAlternative, statuses } = usePosture();
+  const { demoTelemetry, incidents, resolveIncident, resolveAll, setStatus, bestApprovedAlternative, statuses } = usePosture();
   const open = incidents.filter((i) => !i.resolved);
 
   return (
@@ -28,7 +28,12 @@ export function IncidentsSheet() {
       <SheetContent className="w-full sm:max-w-md glass-card-elevated border-l border-glass-border flex flex-col">
         <SheetHeader>
           <SheetTitle>Security Incidents</SheetTitle>
-          <SheetDescription>Shadow-AI access to tools that are not on the approved catalog (simulated proxy feed).</SheetDescription>
+          <SheetDescription>
+            Shadow-AI access to tools that are not on the approved catalog.{' '}
+            {demoTelemetry
+              ? <span className="text-warning">Demo stream is on — these incidents are synthetic.</span>
+              : 'No proxy log source is connected yet, so no incidents are raised.'}
+          </SheetDescription>
         </SheetHeader>
         <div className="flex items-center justify-between text-xs mt-2">
           <span className="text-muted-foreground">{open.length} open · {incidents.length - open.length} resolved</span>

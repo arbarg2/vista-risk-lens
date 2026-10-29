@@ -1,6 +1,6 @@
 import { RefreshCw, Database, Radar as RadarIcon, Gauge } from 'lucide-react';
 import { tools } from '@/data/tools';
-import { usePosture } from '@/context/PostureContext';
+import { usePosture, type SourceKey } from '@/context/PostureContext';
 import type { SourceState } from '@/lib/threatFeed';
 import { cn } from '@/lib/utils';
 
@@ -17,9 +17,12 @@ export function SystemStatus() {
   const impacted = tools.filter((t) => scores[t.id].cvePenalty > 0).length;
   const critical = threats.filter((t) => t.score >= 9).length;
 
-  const rows: { name: string; host: string; key: 'NVD' | 'OSV' }[] = [
+  const rows: { name: string; host: string; key: SourceKey }[] = [
     { name: 'NVD CVE API 2.0', host: 'services.nvd.nist.gov', key: 'NVD' },
     { name: 'OSV.dev', host: 'api.osv.dev', key: 'OSV' },
+    { name: 'CISA KEV', host: 'cisa.gov', key: 'KEV' },
+    { name: 'Vendor status', host: 'statuspage v2', key: 'STATUS' },
+    { name: 'Hugging Face Hub', host: 'huggingface.co/api', key: 'HF' },
   ];
 
   return (
