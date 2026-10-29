@@ -1,5 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { Activity } from 'lucide-react';
+import { Activity, PlugZap } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { usePosture, type TelemetryAction } from '@/context/PostureContext';
 import { cn } from '@/lib/utils';
 
@@ -10,7 +11,7 @@ const ACTION_CLS: Record<TelemetryAction, string> = {
 };
 
 export function TelemetryStream({ className }: { className?: string }) {
-  const { telemetry } = usePosture();
+  const { telemetry, demoTelemetry, setDemoTelemetry } = usePosture();
   const counts = telemetry.reduce(
     (acc, e) => ({ ...acc, [e.action]: acc[e.action] + 1 }),
     { ALLOW: 0, FLAG: 0, BLOCK: 0 } as Record<TelemetryAction, number>,
@@ -21,15 +22,30 @@ export function TelemetryStream({ className }: { className?: string }) {
       <div className="flex items-center gap-2 px-3 py-2 border-b border-border/70">
         <Activity className="w-3.5 h-3.5 text-primary" />
         <span className="text-xs font-semibold text-foreground">Shadow AI Telemetry</span>
-        <span className="text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded bg-secondary text-muted-foreground">Simulated</span>
-        <div className="ml-auto flex gap-2 font-mono text-[10px]">
-          <span className="text-safe">{counts.ALLOW} allow</span>
-          <span className="text-warning">{counts.FLAG} flag</span>
-          <span className="text-danger">{counts.BLOCK} block</span>
-        </div>
+        {demoTelemetry && <span className="text-[9px] font-mono uppercase tracking-wider px-1.5 py-0.5 rounded bg-warning/15 text-warning">Demo data</span>}
+        {demoTelemetry && (
+          <div className="hidden sm:flex gap-2 font-mono text-[10px]">
+            <span className="text-safe">{counts.ALLOW} allow</span>
+            <span className="text-warning">{counts.FLAG} flag</span>
+            <span className="text-danger">{counts.BLOCK} block</span>
+          </div>
+        )}
+        <label className="ml-auto flex items-center gap-1.5 text-[10px] text-muted-foreground cursor-pointer">
+          Demo
+          <Switch checked={demoTelemetry} onCheckedChange={setDemoTelemetry} aria-label="Show demo Shadow AI stream" className="scale-75" />
+        </label>
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto px-3 py-1.5">
-        {telemetry.length === 0 && <p className="text-[11px] text-muted-foreground py-3 font-mono">awaiting proxy events…</p>}
+        {!demoTelemetry && (
+          <div className="flex flex-col items-center justify-center text-center gap-2 py-6 px-4">
+            <PlugZap className="w-5 h-5 text-muted-foreground" />
+            <p className="text-xs text-foreground font-medium">No proxy log source connected</p>
+            <p className="text-[11px] text-muted-foreground max-w-xs">
+              Live Shadow AI detection needs your company's proxy or firewall logs (e.g. Zscaler, Cloudflare, Palo Alto). Turn on <span className="text-foreground">Demo</span> to preview with synthetic events.
+            </p>
+          </div>
+        )}
+        {demoTelemetry && telemetry.length === 0 && <p className="text-[11px] text-muted-foreground py-3 font-mono">awaiting demo events…</p>}
         <AnimatePresence initial={false}>
           {telemetry.slice(0, 30).map((e) => (
             <motion.div

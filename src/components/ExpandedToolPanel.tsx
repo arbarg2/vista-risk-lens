@@ -10,6 +10,8 @@ import { PROFILE_LABELS, PROFILE_THRESHOLD, UNBOUNDED_RETENTION_DAYS, costToRisk
 import { exportAIBOM } from '@/lib/aibomExport';
 import { usePosture } from '@/context/PostureContext';
 import type { SourceState } from '@/lib/threatFeed';
+import { isOngoing } from '@/lib/liveFeeds';
+import { TOOL_STATUS_PAGE } from '@/data/liveSources';
 import { ToolRadarChart } from './ToolRadarChart';
 import { ConfidenceBadge, FIT_META, OUTCOME_META, PolicyFitBadge } from './CredibilityBadges';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -76,7 +78,7 @@ const SOURCE_LABEL: Record<SourceState, { text: string; cls: string }> = {
 const TAB_CLS = 'h-7 px-2.5 text-[11px] data-[state=active]:bg-background/80 data-[state=active]:text-foreground';
 
 export function ExpandedToolPanel({ tool, score, onCompare, inCompare }: { tool: AITool; score: ToolScore; onCompare: () => void; inCompare: boolean }) {
-  const { profile, statuses, threatsByTool, weights, confidence, policy, sources, lastSync, feed } = usePosture();
+  const { profile, statuses, threatsByTool, weights, confidence, policy, sources, lastSync, vendorStatus, hfModels, hfAt, liveFeedsAt } = usePosture();
   const now = useNow();
   const en = getEnrichment(tool.id);
   const threshold = PROFILE_THRESHOLD[profile];
@@ -88,7 +90,12 @@ export function ExpandedToolPanel({ tool, score, onCompare, inCompare }: { tool:
 
   const residencyUndisclosed = tool.trust.dataSovereignty === 'Global' && en.hosting === 'Proprietary';
   const retentionUnbounded = en.retentionDays >= UNBOUNDED_RETENTION_DAYS;
-  const policyEvent = [...feed].reverse().find((l) => l.tag === 'POLICY UPDATE' && (l.text.includes(tool.name) || l.text.startsWith(tool.provider)));
+  const statusKey = TOOL_STATUS_PAGE[tool.id];
+  const vStatus = statusKey ? vendorStatus[statusKey] : undefined;
+  const ongoing = vStatus?.incidents.filter(isOngoing) ?? [];
+  const lastIncident = vStatus?.incidents[0];
+  const hf = hfModels[tool.id];
+  const exploitedCount = threats.filter((t) => t.exploited).length;
   const audited = tool.verified && tool.trust.soc2;
 
   const doExport = (fmt: 'cyclonedx' | 'spdx') => {
@@ -96,7 +103,7 @@ export function ExpandedToolPanel({ tool, score, onCompare, inCompare }: { tool:
     toast.success(`AIBOM exported (${fmt === 'cyclonedx' ? 'CycloneDX 1.6' : 'SPDX 2.3'})`, { description: tool.name });
   };
 
-  const sourceRow = (key: 'NVD' | 'OSV', name: string) => {
+  const sourceRow = (key: 'NVD' | 'OSV' | 'KEV', name: string) => {
     const st = sources[key];
     const m = SOURCE_LABEL[st.state];
     return (
@@ -175,6 +182,23 @@ export function ExpandedToolPanel({ tool, score, onCompare, inCompare }: { tool:
               <Row icon={Unlock} label="Weights / license" value={en.openWeights ? `Open · ${en.license}` : en.license} />
             </div>
           </div>
+          {hf && (
+            <div className="mt-3 rounded-lg border border-border/60 bg-background/40 p-2.5">
+              <div className="flex items-center justify-between text-[11px] mb-1">
+                <span className="font-semibold text-foreground">Hugging Face model card</span>
+                <span className="text-safe font-mono text-[10px]">LIVE{hfAt ? ` · ${ago(hfAt, now)}` : ''}</span>
+              </div>
+              <div className="grid gap-x-6 sm:grid-cols-2">
+                <Row icon={Unlock} label="License (repo)" value={hf.license} />
+                <Row icon={CalendarClock} label="Last commit" value={hf.lastModified ? new Date(hf.lastModified).toLocaleDateString() : '—'} />
+                <Row icon={Download} label="Downloads (30d)" value={hf.downloads.toLocaleString()} />
+                <Row icon={KeyRound} label="Access" value={hf.gated ? `Gated (${hf.gated === true ? 'yes' : hf.gated})` : 'Open'} />
+              </div>
+              <a href={hf.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="mt-1 inline-flex items-center gap-1 text-[11px] text-primary hover:underline font-mono">
+                {hf.repo}{hf.sha ? `@${hf.sha.slice(0, 7)}` : ''} <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+          )}
           <a
             href={tool.policyUrl}
             target="_blank"
@@ -225,14 +249,24 @@ export function ExpandedToolPanel({ tool, score, onCompare, inCompare }: { tool:
             <div>
               {sourceRow('NVD', 'NVD CVE')}
               {sourceRow('OSV', 'OSV.dev')}
+              {sourceRow('KEV', 'CISA KEV')}
               <Row
                 icon={Server}
-                label="Policy watch"
+                label="Vendor status"
                 value={
-                  <span>
-                    {policyEvent ? <span className="text-warning">Change seen {ago(policyEvent.ts, now)}</span> : <span className="text-safe">Monitoring · no changes</span>}
-                    <span className="ml-1 rounded bg-secondary px-1 font-mono text-[9px] text-muted-foreground">SIMULATED</span>
-                  </span>
+                  !statusKey ? <span className="text-muted-foreground">No public status page feed</span>
+                  : !vStatus ? <span className="text-muted-foreground">Loading…</span>
+                  : !vStatus.ok ? <span className="text-danger">Status page unreachable</span>
+                  : ongoing.length ? (
+                    <a href={ongoing[0].url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-warning hover:underline">
+                      {ongoing.length} ongoing · {ongoing[0].name}
+                    </a>
+                  ) : (
+                    <a href={vStatus.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-safe hover:underline">
+                      Operational{lastIncident ? ` · last incident ${ago(new Date(lastIncident.created_at).getTime(), now)}` : ''}
+                      {liveFeedsAt ? <span className="text-muted-foreground"> · checked {ago(liveFeedsAt, now)}</span> : null}
+                    </a>
+                  )
                 }
               />
               <Row icon={BadgeCheck} label="Vendor attestation" value={audited ? 'SOC 2 audited · verified' : tool.trust.soc2 ? 'SOC 2 self-reported' : 'Self-reported only'} tone={audited ? 'good' : 'bad'} />
@@ -245,6 +279,7 @@ export function ExpandedToolPanel({ tool, score, onCompare, inCompare }: { tool:
                   {score.cvePenalty ? `−${score.cvePenalty} trust` : 'no penalty'}
                 </span>
               </div>
+              {exploitedCount > 0 && <p className="text-[11px] text-danger mb-1">{exploitedCount} actively exploited (CISA KEV) — weighted ×2</p>}
               {threats.length === 0 ? (
                 <p className="text-[11px] text-muted-foreground">No matching advisories in its dependency stack.</p>
               ) : (
@@ -253,6 +288,7 @@ export function ExpandedToolPanel({ tool, score, onCompare, inCompare }: { tool:
                     <li key={`${t.pkg}-${t.id}`} className="flex items-center gap-2 text-[11px] font-mono">
                       <span className={cn('shrink-0', t.score >= 9 ? 'text-danger' : t.score >= 7 ? 'text-warning' : 'text-muted-foreground')}>{t.score.toFixed(1)}</span>
                       <a href={t.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-foreground hover:text-primary truncate">{t.id}</a>
+                      {t.exploited && <span className="shrink-0 rounded bg-danger/20 px-1 text-[9px] font-bold text-danger" title="Listed in CISA Known Exploited Vulnerabilities">KEV</span>}
                       <span className="ml-auto text-muted-foreground shrink-0">{t.pkg}</span>
                     </li>
                   ))}

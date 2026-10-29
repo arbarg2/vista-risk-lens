@@ -12,14 +12,16 @@ const LEVEL_CLS: Record<FeedLine['level'], string> = {
 
 const TAG_CLS: Record<FeedTag, string> = {
   CVE: 'bg-danger/15 text-danger',
-  'POLICY UPDATE': 'bg-warning/15 text-warning',
+  KEV: 'bg-danger/25 text-danger',
+  STATUS: 'bg-warning/15 text-warning',
   SYS: 'bg-primary/10 text-primary',
 };
 
 const FILTERS: { id: 'all' | FeedTag; label: string }[] = [
   { id: 'all', label: 'ALL' },
   { id: 'CVE', label: 'CVE' },
-  { id: 'POLICY UPDATE', label: 'POLICY' },
+  { id: 'KEV', label: 'KEV' },
+  { id: 'STATUS', label: 'STATUS' },
   { id: 'SYS', label: 'SYS' },
 ];
 
@@ -83,7 +85,6 @@ export function ThreatFeedTerminal({ className }: { className?: string }) {
                 l.text
               )}
               {l.source && <span className="text-muted-foreground/60"> · {l.source}</span>}
-              {l.simulated && <span className="text-muted-foreground/60"> · sim</span>}
             </span>
           </div>
         ))}

@@ -298,7 +298,7 @@ const Index = () => {
 
       <footer className="shrink-0 border-t border-border">
         <div className="max-w-[1600px] mx-auto px-4 py-1.5 text-center text-[10px] text-muted-foreground truncate">
-          VigilAI — Tool posture from public vendor policies; vulnerabilities live from NVD &amp; OSV.dev. Telemetry and policy-watch events are simulated.
+          VigilAI — Tool posture from public vendor policies · live data from NVD, OSV.dev, CISA KEV, vendor status pages &amp; Hugging Face Hub.
         </div>
       </footer>
     </div>

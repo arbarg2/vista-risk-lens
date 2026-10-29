@@ -36,6 +36,8 @@ export interface ThreatItem {
   summary: string;
   source: 'NVD' | 'OSV';
   url: string;
+  /** Listed in CISA's Known Exploited Vulnerabilities catalog (actively exploited in the wild). */
+  exploited?: boolean;
 }
 
 // ─── Profile presets ────────────────────────────────────
@@ -174,12 +176,14 @@ function recencyFactor(published: string, now: number): number {
 }
 
 export const MAX_CVE_PENALTY = 25;
+/** CVEs on CISA's Known Exploited Vulnerabilities list weigh this many times more. */
+export const KEV_MULTIPLIER = 2;
 
 /** Risk mass per dependency package, from CVSS scores weighted by severity² and recency. */
 export function packageRisk(threats: ThreatItem[], now = Date.now()): Partial<Record<DependencyPackage, number>> {
   const out: Partial<Record<DependencyPackage, number>> = {};
   for (const t of threats) {
-    const w = Math.pow(t.score / 10, 2) * recencyFactor(t.published, now);
+    const w = Math.pow(t.score / 10, 2) * recencyFactor(t.published, now) * (t.exploited ? KEV_MULTIPLIER : 1);
     out[t.pkg] = (out[t.pkg] ?? 0) + w;
   }
   return out;
