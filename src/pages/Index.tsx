@@ -205,7 +205,7 @@ const Index = () => {
 
       <main className={cn("flex-1 min-h-0 w-full max-w-[1600px] mx-auto px-4 py-3", cn('grid gap-4', secops ? 'grid-rows-[minmax(0,1fr)_minmax(0,2.2fr)] lg:grid-rows-1 lg:grid-cols-[minmax(0,35fr)_minmax(0,65fr)]' : 'grid-cols-1 grid-rows-1'))}>
         {/* Left pane — threat intel & telemetry (SecOps only) */}
-        <AnimatePresence initial={false}>
+        <AnimatePresence initial={false} mode="popLayout">
         {secops && (
         <motion.aside key="secops-pane" initial={{ opacity: 0, x: -24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.25 }} className="flex flex-col gap-3 min-h-0 overflow-y-auto lg:overflow-hidden">
           <div className="shrink-0"><SystemStatus /></div>
