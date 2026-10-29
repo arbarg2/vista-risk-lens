@@ -7,9 +7,11 @@ import {
 } from '@/lib/posture';
 import { dependencyExposure } from '@/data/enrichment';
 import { readThreatCache, syncThreats, type SourceState } from '@/lib/threatFeed';
+import { feedsCacheFresh, fetchHFModels, fetchLiveFeeds, isOngoing, readFeedsCache, type HFModel, type LiveFeeds, type VendorStatus } from '@/lib/liveFeeds';
+import { TOOL_HF_REPO } from '@/data/liveSources';
 
 // ─── Types ──────────────────────────────────────────────
-export type FeedTag = 'CVE' | 'POLICY UPDATE' | 'SYS';
+export type FeedTag = 'CVE' | 'KEV' | 'STATUS' | 'SYS';
 export interface FeedLine {
   id: string;
   ts: number;
@@ -18,7 +20,6 @@ export interface FeedLine {
   text: string;
   source?: string;
   url?: string;
-  simulated?: boolean;
 }
 
 export type TelemetryAction = 'ALLOW' | 'FLAG' | 'BLOCK';
@@ -44,6 +45,7 @@ export interface Incident {
   resolution?: string;
 }
 
+export type SourceKey = 'NVD' | 'OSV' | 'KEV' | 'STATUS' | 'HF';
 interface SourceStatus { state: SourceState; detail?: string; count: number }
 
 interface PostureState {
@@ -63,7 +65,15 @@ interface PostureState {
   policy: Record<string, { checks: PolicyCheck[]; fit: PolicyFit }>;
   threats: ThreatItem[];
   threatsByTool: Record<string, ThreatItem[]>;
-  sources: Record<'NVD' | 'OSV', SourceStatus>;
+  sources: Record<SourceKey, SourceStatus>;
+  kev: LiveFeeds['kev'] | null;
+  vendorStatus: Record<string, VendorStatus>;
+  liveFeedsAt: number | null;
+  hfModels: Record<string, HFModel>;
+  hfAt: number | null;
+  /** Demo Shadow-AI stream (synthetic). Off by default; real proxy logs are not connected yet. */
+  demoTelemetry: boolean;
+  setDemoTelemetry: (on: boolean) => void;
   lastSync: number | null;
   syncing: boolean;
   resync: () => void;
@@ -79,6 +89,7 @@ const Ctx = createContext<PostureState | null>(null);
 
 const STATUS_KEY = 'vigilance.statuses.v1';
 const WEIGHTS_KEY = 'vigilance.weights.v1';
+const DEMO_KEY = 'vigilance.demoTelemetry.v1';
 
 function load<T>(key: string, fallback: T): T {
   try {
@@ -92,7 +103,6 @@ function load<T>(key: string, fallback: T): T {
 const uid = () => Math.random().toString(36).slice(2, 10);
 const pick = <T,>(arr: T[]) => arr[Math.floor(Math.random() * arr.length)];
 const DEPTS = ['Engineering', 'Finance', 'Legal', 'Marketing', 'Sales', 'HR', 'Product', 'Support', 'Data Science'];
-const REGIONS = ['eu-central-1 (Frankfurt)', 'eu-west-3 (Paris)', 'us-gov-west-1', 'ap-southeast-1', 'me-central-1'];
 
 function levelFromScore(s: number): FeedLine['level'] {
   if (s >= 9) return 'critical';
@@ -113,30 +123,6 @@ function cveLine(t: ThreatItem, cached = false): FeedLine {
   };
 }
 
-function policyLine(): FeedLine {
-  const tool = pick(tools);
-  const templates = [
-    () => `${tool.provider} revised privacy policy §${Math.ceil(Math.random() * 12)} — ${tool.name} training-data clause changed`,
-    () => {
-      const a = pick([0, 30, 30, 55, 90]);
-      const b = pick([30, 60, 90, 180, 365].filter((x) => x !== a));
-      return `${tool.name}: data retention window shifted ${a}d → ${b}d`;
-    },
-    () => `${tool.name}: data residency update — new processing region ${pick(REGIONS)}`,
-    () => `${tool.provider} DPA amended — sub-processor list updated (+1 vendor)`,
-    () => `${tool.name}: zero-data-retention option ${Math.random() > 0.5 ? 'expanded to API tier' : 'restricted to enterprise tier'}`,
-  ];
-  return {
-    id: `pol-${uid()}`,
-    ts: Date.now(),
-    tag: 'POLICY UPDATE',
-    level: Math.random() > 0.7 ? 'high' : 'medium',
-    text: pick(templates)(),
-    source: 'policy-watch',
-    simulated: true,
-  };
-}
-
 const sysLine = (text: string, level: FeedLine['level'] = 'info'): FeedLine => ({ id: `sys-${uid()}`, ts: Date.now(), tag: 'SYS', level, text });
 
 // ─── Provider ───────────────────────────────────────────
@@ -145,10 +131,18 @@ export function PostureProvider({ children }: { children: ReactNode }) {
   const [customWeights, setCustomWeights] = useState<Partial<Record<ComplianceProfile, PolicyWeights>>>(() => load(WEIGHTS_KEY, {}));
   const [statusOverrides, setStatusOverrides] = useState<Record<string, ApprovalStatus>>(() => load(STATUS_KEY, {}));
   const [threats, setThreats] = useState<ThreatItem[]>([]);
-  const [sources, setSources] = useState<Record<'NVD' | 'OSV', SourceStatus>>({
+  const [sources, setSources] = useState<Record<SourceKey, SourceStatus>>({
     NVD: { state: 'idle', count: 0 },
     OSV: { state: 'idle', count: 0 },
+    KEV: { state: 'idle', count: 0 },
+    STATUS: { state: 'idle', count: 0 },
+    HF: { state: 'idle', count: 0 },
   });
+  const [liveFeeds, setLiveFeeds] = useState<LiveFeeds | null>(null);
+  const [hfModels, setHfModels] = useState<Record<string, HFModel>>({});
+  const [hfAt, setHfAt] = useState<number | null>(null);
+  const [demoTelemetry, setDemoTelemetryState] = useState<boolean>(() => load(DEMO_KEY, false));
+  const seenFeedIds = useRef(new Set<string>());
   const [lastSync, setLastSync] = useState<number | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [feed, setFeed] = useState<FeedLine[]>([]);
@@ -160,6 +154,11 @@ export function PostureProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => { localStorage.setItem(WEIGHTS_KEY, JSON.stringify(customWeights)); }, [customWeights]);
   useEffect(() => { localStorage.setItem(STATUS_KEY, JSON.stringify(statusOverrides)); }, [statusOverrides]);
+  useEffect(() => { localStorage.setItem(DEMO_KEY, JSON.stringify(demoTelemetry)); }, [demoTelemetry]);
+  const setDemoTelemetry = useCallback((on: boolean) => {
+    setDemoTelemetryState(on);
+    if (!on) { setTelemetry([]); setIncidents([]); }
+  }, []);
 
   const weights = customWeights[profile] ?? DEFAULT_WEIGHTS[profile];
   const isCustomWeights = !!customWeights[profile];
@@ -180,8 +179,15 @@ export function PostureProvider({ children }: { children: ReactNode }) {
     if (t) queue.current.push(sysLine(`catalog: ${t.name} → ${s === 'approved' ? 'APPROVED' : s === 'banned' ? 'BANNED' : 'UNDER REVIEW'}`, s === 'banned' ? 'high' : 'info'));
   }, []);
 
+  // Mark CVEs listed in CISA KEV as actively exploited
+  const kevIds = useMemo(() => new Set(liveFeeds?.kev.ids ?? []), [liveFeeds]);
+  const liveThreats = useMemo(
+    () => threats.map((t) => ({ ...t, exploited: kevIds.has(t.id) || t.aliases.some((a) => kevIds.has(a)) })),
+    [threats, kevIds],
+  );
+
   // CVE → per-tool penalties
-  const risk = useMemo(() => packageRisk(threats), [threats]);
+  const risk = useMemo(() => packageRisk(liveThreats), [liveThreats]);
   const scores = useMemo(() => {
     const out: Record<string, ToolScore> = {};
     for (const t of tools) out[t.id] = scoreTool(t, profile, weights, cvePenaltyFor(t, risk));
@@ -191,12 +197,12 @@ export function PostureProvider({ children }: { children: ReactNode }) {
     const out: Record<string, ThreatItem[]> = {};
     for (const t of tools) {
       const exp = dependencyExposure(t);
-      out[t.id] = threats
+      out[t.id] = liveThreats
         .filter((th) => (exp[th.pkg] ?? 0) >= 0.1)
         .sort((a, b) => b.score * (exp[b.pkg] ?? 0) - a.score * (exp[a.pkg] ?? 0));
     }
     return out;
-  }, [threats]);
+  }, [liveThreats]);
   const posture = useMemo(() => approvedPosture(tools, statuses, scores), [statuses, scores]);
 
   const telemetryActive = useMemo(() => {
@@ -225,7 +231,7 @@ export function PostureProvider({ children }: { children: ReactNode }) {
         setThreats(cached.items);
         setLastSync(cached.fetchedAt);
         const nvd = cached.items.filter((i) => i.source === 'NVD').length;
-        setSources({ NVD: { state: 'cached', count: nvd }, OSV: { state: 'cached', count: cached.items.length - nvd } });
+        setSources((s) => ({ ...s, NVD: { state: 'cached', count: nvd }, OSV: { state: 'cached', count: cached.items.length - nvd } }));
         queue.current.push(sysLine(`restored ${cached.items.length} advisories from local cache (synced ${new Date(cached.fetchedAt).toLocaleTimeString()})`));
         [...cached.items].sort((a, b) => b.score - a.score).slice(0, 12).reverse().forEach((t) => queue.current.push(cveLine(t, true)));
         return;
@@ -235,7 +241,7 @@ export function PostureProvider({ children }: { children: ReactNode }) {
     const ac = new AbortController();
     abortRef.current = ac;
     setSyncing(true);
-    setSources({ NVD: { state: 'loading', count: 0 }, OSV: { state: 'loading', count: 0 } });
+    setSources((s) => ({ ...s, NVD: { state: 'loading', count: 0 }, OSV: { state: 'loading', count: 0 } }));
     queue.current.push(sysLine('connecting → services.nvd.nist.gov /rest/json/cves/2.0'));
     queue.current.push(sysLine('connecting → api.osv.dev /v1/query'));
     const collected: ThreatItem[] = [];
@@ -278,18 +284,83 @@ export function PostureProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(iv);
   }, []);
 
-  // Simulated policy-watch events
-  useEffect(() => {
-    let t: ReturnType<typeof setTimeout>;
-    const loop = () => {
-      t = setTimeout(() => { queue.current.push(policyLine()); loop(); }, 9000 + Math.random() * 7000);
-    };
-    loop();
-    return () => clearTimeout(t);
+  // ─── CISA KEV + vendor status pages (real, via backend proxy) ───
+  const applyLiveFeeds = useCallback((f: LiveFeeds, cached: boolean) => {
+    setLiveFeeds(f);
+    const statuses = Object.values(f.status);
+    const okStatus = statuses.filter((v) => v.ok).length;
+    setSources((s) => ({
+      ...s,
+      KEV: f.kev.ok ? { state: cached ? 'cached' : 'live', count: f.kev.ai.length, detail: `${f.kev.count} total · catalog v${f.kev.catalogVersion}` } : { state: 'error', count: 0, detail: f.kev.error },
+      STATUS: okStatus ? { state: cached ? 'cached' : 'live', count: okStatus, detail: `${okStatus}/${statuses.length} vendor pages reachable` } : { state: 'error', count: 0, detail: 'No vendor status pages reachable' },
+    }));
+    const lines: FeedLine[] = [];
+    for (const k of [...f.kev.ai].slice(0, 8).reverse()) {
+      const id = `kev-${k.cveID}`;
+      if (seenFeedIds.current.has(id)) continue;
+      seenFeedIds.current.add(id);
+      lines.push({
+        id, ts: Date.now(), tag: 'KEV', level: 'critical',
+        text: `${k.cveID} [${k.product}] ACTIVELY EXPLOITED — ${k.name} · added ${k.dateAdded}${k.ransomware === 'Known' ? ' · ransomware use' : ''}`,
+        source: 'CISA KEV', url: `https://nvd.nist.gov/vuln/detail/${k.cveID}`,
+      });
+    }
+    const cutoff = Date.now() - 14 * 86_400_000;
+    const recent = statuses.flatMap((v) => v.incidents.map((i) => ({ v, i })))
+      .filter(({ i }) => new Date(i.created_at).getTime() >= cutoff)
+      .sort((a, b) => a.i.created_at.localeCompare(b.i.created_at));
+    for (const { v, i } of recent.slice(-12)) {
+      const id = `st-${i.id}-${i.status}`;
+      if (seenFeedIds.current.has(id)) continue;
+      seenFeedIds.current.add(id);
+      const ongoing = isOngoing(i);
+      lines.push({
+        id, ts: Date.now(), tag: 'STATUS',
+        level: ongoing ? (['major', 'critical'].includes(i.impact) ? 'high' : 'medium') : 'low',
+        text: `${v.name}: ${i.name} — ${i.status}${ongoing ? '' : ` (${new Date(i.created_at).toLocaleDateString()})`}`,
+        source: new URL(v.url).host, url: i.url,
+      });
+    }
+    lines.forEach((l) => queue.current.push(l));
   }, []);
 
-  // Simulated Shadow-AI telemetry (enforced against the live approval catalog)
+  const loadLiveFeeds = useCallback((force: boolean) => {
+    const cached = readFeedsCache();
+    if (!force && cached && feedsCacheFresh(cached)) { applyLiveFeeds(cached, true); return; }
+    setSources((s) => ({ ...s, KEV: { ...s.KEV, state: 'loading' }, STATUS: { ...s.STATUS, state: 'loading' } }));
+    queue.current.push(sysLine('connecting → cisa.gov KEV catalog · vendor status pages'));
+    fetchLiveFeeds()
+      .then((f) => { applyLiveFeeds(f, false); queue.current.push(sysLine(`[KEV] ${f.kev.count} known-exploited CVEs · ${f.kev.ai.length} in AI/ML tooling`)); })
+      .catch((e) => {
+        if (cached) { applyLiveFeeds(cached, true); return; }
+        const detail = e instanceof Error ? e.message : 'request failed';
+        setSources((s) => ({ ...s, KEV: { state: 'error', count: 0, detail }, STATUS: { state: 'error', count: 0, detail } }));
+        queue.current.push(sysLine(`[KEV/STATUS] unreachable — ${detail}`, 'high'));
+      });
+  }, [applyLiveFeeds]);
+
   useEffect(() => {
+    loadLiveFeeds(false);
+    const iv = setInterval(() => loadLiveFeeds(true), 10 * 60 * 1000);
+    return () => clearInterval(iv);
+  }, [loadLiveFeeds]);
+
+  // ─── Hugging Face Hub model metadata (real) ───
+  const loadHF = useCallback(() => {
+    setSources((s) => ({ ...s, HF: { ...s.HF, state: 'loading' } }));
+    fetchHFModels(TOOL_HF_REPO).then(({ models, fetchedAt, failed }) => {
+      setHfModels(models);
+      setHfAt(fetchedAt);
+      const n = Object.keys(models).length;
+      setSources((s) => ({ ...s, HF: n ? { state: 'live', count: n, detail: failed ? `${failed} repos unreachable` : undefined } : { state: 'error', count: 0, detail: 'Hugging Face unreachable' } }));
+      if (n) queue.current.push(sysLine(`[HF] model cards & licenses refreshed for ${n} open-weights models`));
+    });
+  }, []);
+  useEffect(() => { loadHF(); }, [loadHF]);
+
+  // DEMO Shadow-AI telemetry — synthetic, off by default (enforced against the live approval catalog)
+  useEffect(() => {
+    if (!demoTelemetry) return;
     let t: ReturnType<typeof setTimeout>;
     const loop = () => {
       t = setTimeout(() => {
@@ -314,7 +385,7 @@ export function PostureProvider({ children }: { children: ReactNode }) {
     };
     loop();
     return () => clearTimeout(t);
-  }, []);
+  }, [demoTelemetry]);
 
   const resolveIncident = useCallback((id: string, resolution: string) => {
     setIncidents((p) => p.map((i) => (i.id === id ? { ...i, resolved: true, resolution } : i)));
@@ -332,8 +403,10 @@ export function PostureProvider({ children }: { children: ReactNode }) {
 
   const value: PostureState = {
     profile, setProfile, weights, isCustomWeights, setWeights, resetWeights,
-    statuses, setStatus, scores, posture, telemetryActive, confidence, policy, threats, threatsByTool, sources, lastSync, syncing,
-    resync: () => runSync(true), feed, telemetry, incidents, resolveIncident, resolveAll, bestApprovedAlternative,
+    statuses, setStatus, scores, posture, telemetryActive, confidence, policy, threats: liveThreats, threatsByTool, sources, lastSync, syncing,
+    kev: liveFeeds?.kev ?? null, vendorStatus: liveFeeds?.status ?? {}, liveFeedsAt: liveFeeds ? new Date(liveFeeds.fetchedAt).getTime() : null,
+    hfModels, hfAt, demoTelemetry, setDemoTelemetry,
+    resync: () => { runSync(true); loadLiveFeeds(true); }, feed, telemetry, incidents, resolveIncident, resolveAll, bestApprovedAlternative,
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
