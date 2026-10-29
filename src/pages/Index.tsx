@@ -14,6 +14,8 @@ import { SystemStatus } from '@/components/SystemStatus';
 import { IncidentsSheet } from '@/components/IncidentsSheet';
 import { PolicyWeightsDrawer } from '@/components/PolicyWeightsDrawer';
 import { BoardReportDrawer } from '@/components/BoardReportDrawer';
+import { ViewModeToggle, type ViewMode } from '@/components/ViewModeToggle';
+import { ExecutiveKPIs } from '@/components/ExecutiveKPIs';
 import { Search, ShieldCheck, X, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -55,6 +57,9 @@ const Index = () => {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState<CategoryGroup>('all');
   const [compareOpen, setCompareOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>(() => (localStorage.getItem('vigil.viewMode') as ViewMode) || 'governance');
+  useEffect(() => { localStorage.setItem('vigil.viewMode', viewMode); }, [viewMode]);
+  const secops = viewMode === 'secops';
   const searchRef = useRef<HTMLInputElement>(null);
 
   // ⌘K / Ctrl+K focuses the search bar
@@ -155,8 +160,9 @@ const Index = () => {
             </div>
           </div>
 
-          <div className="order-last w-full flex justify-center xl:order-none xl:w-auto">
+          <div className="order-last w-full flex flex-wrap justify-center gap-2 xl:order-none xl:w-auto">
             <ProfileToggle active={profile} onChange={setProfile} />
+            <ViewModeToggle mode={viewMode} onChange={setViewMode} />
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -197,16 +203,21 @@ const Index = () => {
         </div>
       </header>
 
-      <main className="flex-1 min-h-0 w-full max-w-[1600px] mx-auto px-4 py-3 grid gap-4 grid-rows-[minmax(0,1fr)_minmax(0,2.2fr)] lg:grid-rows-1 lg:grid-cols-[minmax(0,35fr)_minmax(0,65fr)]">
-        {/* Left pane — threat intel & telemetry */}
-        <aside className="flex flex-col gap-3 min-h-0 overflow-y-auto lg:overflow-hidden">
+      <main className={cn("flex-1 min-h-0 w-full max-w-[1600px] mx-auto px-4 py-3", cn('grid gap-4', secops ? 'grid-rows-[minmax(0,1fr)_minmax(0,2.2fr)] lg:grid-rows-1 lg:grid-cols-[minmax(0,35fr)_minmax(0,65fr)]' : 'grid-cols-1 grid-rows-1'))}>
+        {/* Left pane — threat intel & telemetry (SecOps only) */}
+        <AnimatePresence initial={false}>
+        {secops && (
+        <motion.aside key="secops-pane" initial={{ opacity: 0, x: -24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }} transition={{ duration: 0.25 }} className="flex flex-col gap-3 min-h-0 overflow-y-auto lg:overflow-hidden">
           <div className="shrink-0"><SystemStatus /></div>
           <ThreatFeedTerminal className="h-[320px] shrink-0 lg:h-auto lg:shrink lg:flex-[3] lg:min-h-0" />
           <TelemetryStream className="h-[240px] shrink-0 lg:h-auto lg:shrink lg:flex-[2] lg:min-h-0" />
-        </aside>
+        </motion.aside>
+        )}
+        </AnimatePresence>
 
         {/* Right pane — leaderboard & posture */}
-        <section className="flex flex-col gap-3 min-h-0 min-w-0">
+        <motion.section layout transition={{ duration: 0.3 }} className="flex flex-col gap-3 min-h-0 min-w-0">
+          <AnimatePresence initial={false}>{!secops && <ExecutiveKPIs key="kpis" />}</AnimatePresence>
           <motion.div
             key={profile}
             initial={{ opacity: 0, y: -6 }}
@@ -291,7 +302,7 @@ const Index = () => {
           </div>
 
           <LeaderboardTable tools={visible} onCompare={handleCompare} compareSelected={compareList} driver={driver} className="flex-1" />
-        </section>
+        </motion.section>
       </main>
 
       <CompareModal tools={compareTools} open={compareOpen} onOpenChange={setCompareOpen} onClear={clearCompare} />
