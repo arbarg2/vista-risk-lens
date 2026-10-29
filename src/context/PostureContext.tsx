@@ -188,7 +188,7 @@ export function PostureProvider({ children }: { children: ReactNode }) {
     for (const t of tools) {
       const exp = dependencyExposure(t);
       out[t.id] = threats
-        .filter((th) => (exp[th.pkg] ?? 0) >= 0.2)
+        .filter((th) => (exp[th.pkg] ?? 0) >= 0.1)
         .sort((a, b) => b.score * (exp[b.pkg] ?? 0) - a.score * (exp[a.pkg] ?? 0));
     }
     return out;

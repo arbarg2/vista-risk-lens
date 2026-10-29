@@ -103,8 +103,8 @@ export function dependencyExposure(tool: { id: string; category: string }): Part
     case 'LLM':
     case 'Reasoning':
     case 'Embedding':
-    case 'Search': return { langchain: 0.25, transformers: 0.05 };
-    case 'Code': return { langchain: 0.15 };
+    case 'Search': return { langchain: 0.12, transformers: 0.05 };
+    case 'Code': return { langchain: 0.08 };
     case 'Assistant': return { langchain: 0.05 };
     default: return { pytorch: 0.1 };
   }

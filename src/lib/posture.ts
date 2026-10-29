@@ -154,9 +154,12 @@ export function approvedPosture(
 
 // ─── Approval defaults ──────────────────────────────────
 const DEFAULT_BANNED_PROVIDERS = ['DeepSeek', 'Alibaba Cloud'];
+/** Synthetic-media tools start in review (copyright + EU AI Act Art. 50 labelling checks). */
+const REVIEW_FIRST_CATEGORIES = ['Image Gen', 'Video Gen'];
 
 export function defaultStatus(tool: AITool): ApprovalStatus {
   if (DEFAULT_BANNED_PROVIDERS.includes(tool.provider)) return 'banned';
+  if (REVIEW_FIRST_CATEGORIES.includes(tool.category)) return 'review';
   if (tool.verified && tool.trust.soc2 && tool.trust.sso) return 'approved';
   return 'review';
 }

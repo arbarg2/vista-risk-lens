@@ -10,16 +10,16 @@ interface ToolRadarChartProps {
 
 export function ToolRadarChart({ score, threshold, size = 220, compareScore }: ToolRadarChartProps) {
   const row = (s: ToolScore) => [s.perfScore, s.sovScore, s.privScore, s.secScore, s.owaspScore, s.trustScore];
-  const labels = ['Performance', 'Sovereignty', 'Privacy', 'Security', 'OWASP', 'Trust (live)'];
+  const labels = ['Perf', 'Sovereignty', 'Privacy', 'Security', 'OWASP', 'Trust'];
   const a = row(score);
   const b = compareScore ? row(compareScore) : null;
   const data = labels.map((subject, i) => ({ subject, value: a[i], threshold, compare: b ? b[i] : undefined }));
 
   return (
     <ResponsiveContainer width={size} height={size}>
-      <RadarChart data={data} cx="50%" cy="50%" outerRadius="68%">
+      <RadarChart data={data} cx="50%" cy="50%" outerRadius="62%">
         <PolarGrid stroke="hsl(var(--radar-grid))" strokeOpacity={1} />
-        <PolarAngleAxis dataKey="subject" tick={{ fill: 'hsl(var(--foreground))', fontSize: 10, fontWeight: 500 }} />
+        <PolarAngleAxis dataKey="subject" tick={{ fill: 'hsl(var(--foreground))', fontSize: 9.5, fontWeight: 500 }} />
         <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
         <Radar
           name="Minimum acceptable"

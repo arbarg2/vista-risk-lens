@@ -45,6 +45,7 @@ describe('default approval status', () => {
     expect(defaultStatus(byId('qwen-3'))).toBe('banned');
   });
   it('puts unverified tools under review', () => expect(defaultStatus(byId('cursor-ai'))).toBe('review'));
+  it('puts synthetic-media tools under review first', () => expect(defaultStatus(byId('sora-2'))).toBe('review'));
 });
 
 describe('live CVE weighting', () => {

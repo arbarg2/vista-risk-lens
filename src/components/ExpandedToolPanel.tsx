@@ -47,11 +47,11 @@ export function ExpandedToolPanel({ tool, score, onCompare, inCompare }: { tool:
   };
 
   return (
-    <div className="px-4 sm:px-5 py-5 grid gap-5 md:grid-cols-[220px_1fr_1fr] bg-secondary/20">
+    <div className="px-4 sm:px-5 py-5 grid gap-5 md:grid-cols-[230px_1fr_1fr] bg-secondary/20">
       {/* Posture Matrix */}
       <div className="flex flex-col items-center">
         <h4 className="self-start text-[11px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Posture Matrix</h4>
-        <ToolRadarChart score={score} threshold={threshold} />
+        <ToolRadarChart score={score} threshold={threshold} size={230} />
         <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
           <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-safe" /> Tool</span>
           <span className="flex items-center gap-1"><span className="w-3 border-t border-dashed border-danger" /> Min. {threshold}</span>
