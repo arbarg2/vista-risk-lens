@@ -17,7 +17,7 @@ export function ToolRadarChart({ score, threshold, size = 220, compareScore }: T
 
   return (
     <ResponsiveContainer width={size} height={size}>
-      <RadarChart data={data} cx="50%" cy="50%" outerRadius="62%">
+      <RadarChart data={data} cx="50%" cy="50%" outerRadius="56%">
         <PolarGrid stroke="hsl(var(--radar-grid))" strokeOpacity={1} />
         <PolarAngleAxis dataKey="subject" tick={{ fill: 'hsl(var(--foreground))', fontSize: 9.5, fontWeight: 500 }} />
         <PolarRadiusAxis domain={[0, 100]} tick={false} axisLine={false} />
