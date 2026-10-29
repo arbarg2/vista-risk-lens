@@ -16,25 +16,27 @@ interface ProfileToggleProps {
 
 export function ProfileToggle({ active, onChange }: ProfileToggleProps) {
   return (
-    <div className="glass-card p-1 flex gap-1">
+    <div role="tablist" aria-label="Compliance profile" className="segmented flex p-1 rounded-full">
       {profiles.map((p) => {
         const Icon = p.icon;
         const isActive = active === p.id;
         return (
           <button
             key={p.id}
+            role="tab"
+            aria-selected={isActive}
             onClick={() => onChange(p.id)}
-            className="relative px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2"
+            className="relative px-3 sm:px-4 py-1.5 rounded-full text-[13px] font-medium flex items-center gap-2 outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {isActive && (
-              <motion.div
-                layoutId="profile-bg"
-                className="absolute inset-0 rounded-lg bg-primary/20 border border-primary/30"
-                transition={{ type: 'spring', bounce: 0.2, duration: 0.5 }}
+              <motion.span
+                layoutId="profile-pill"
+                className="absolute inset-0 rounded-full segmented-pill"
+                transition={{ type: 'spring', stiffness: 420, damping: 32, mass: 0.8 }}
               />
             )}
-            <Icon className={`w-4 h-4 relative z-10 ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
-            <span className={`relative z-10 hidden sm:inline ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
+            <Icon className={`w-3.5 h-3.5 relative z-10 transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground'}`} />
+            <span className={`relative z-10 hidden md:inline transition-colors ${isActive ? 'text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
               {p.label}
             </span>
           </button>

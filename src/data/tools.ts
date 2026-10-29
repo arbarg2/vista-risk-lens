@@ -26,57 +26,6 @@ export interface AITool {
   lastUpdated: string;
 }
 
-export const profileWeights: Record<ComplianceProfile, { dataSovereignty: Record<string, number>; trainingPrivacy: Record<string, number>; ssoWeight: number; soc2Weight: number; hipaaWeight: number }> = {
-  'eu-enterprise': {
-    dataSovereignty: { EU: 1, US: 0.3, Global: 0.5 },
-    trainingPrivacy: { Never: 1, 'Opt-out': 0.6, 'Opt-in': 0.2 },
-    ssoWeight: 1, soc2Weight: 1, hipaaWeight: 0.5,
-  },
-  'us-fedramp': {
-    dataSovereignty: { EU: 0.5, US: 1, Global: 0.6 },
-    trainingPrivacy: { Never: 1, 'Opt-out': 0.7, 'Opt-in': 0.3 },
-    ssoWeight: 1, soc2Weight: 1, hipaaWeight: 1,
-  },
-  'global-startup': {
-    dataSovereignty: { EU: 0.8, US: 0.8, Global: 1 },
-    trainingPrivacy: { Never: 0.8, 'Opt-out': 0.9, 'Opt-in': 0.7 },
-    ssoWeight: 0.5, soc2Weight: 0.6, hipaaWeight: 0.3,
-  },
-  personal: {
-    dataSovereignty: { EU: 0.9, US: 0.9, Global: 1 },
-    trainingPrivacy: { Never: 1, 'Opt-out': 0.8, 'Opt-in': 0.5 },
-    ssoWeight: 0.2, soc2Weight: 0.3, hipaaWeight: 0.1,
-  },
-};
-
-export function calcScore(tool: AITool, profile: ComplianceProfile) {
-  const w = profileWeights[profile];
-  const perfScore = (tool.performance.accuracy * 0.5 + (1 - Math.min(tool.performance.latency, 2000) / 2000) * 0.3 + Math.min(tool.performance.throughput, 100) / 100 * 0.2) * 100;
-  const sovScore = (w.dataSovereignty[tool.trust.dataSovereignty] ?? 0.5) * 100;
-  const privScore = (w.trainingPrivacy[tool.trust.trainingPrivacy] ?? 0.5) * 100;
-  const secScore = (
-    (tool.trust.sso ? w.ssoWeight : 0) +
-    (tool.trust.soc2 ? w.soc2Weight : 0) +
-    (tool.trust.hipaa ? w.hipaaWeight : 0) +
-    (tool.trust.encryptionAtRest ? 1 : 0)
-  ) / (w.ssoWeight + w.soc2Weight + w.hipaaWeight + 1) * 100;
-  const trustScore = (sovScore * 0.35 + privScore * 0.35 + secScore * 0.3);
-  const total = perfScore * 0.4 + trustScore * 0.6;
-  return { total: Math.round(total), perfScore: Math.round(perfScore), trustScore: Math.round(trustScore), sovScore: Math.round(sovScore), privScore: Math.round(privScore), secScore: Math.round(secScore) };
-}
-
-export function getScoreColor(score: number): string {
-  if (score >= 75) return 'safe';
-  if (score >= 50) return 'warning';
-  return 'danger';
-}
-
-export function costToRiskRatio(tool: AITool, profile: ComplianceProfile): string {
-  const { total } = calcScore(tool, profile);
-  if (total === 0) return '∞';
-  return (tool.costPerMToken / total * 100).toFixed(2);
-}
-
 export const tools: AITool[] = [
   // ── LLMs ──────────────────────────────────────────────
   {
@@ -627,21 +576,4 @@ export const tools: AITool[] = [
     policyUrl: 'https://privacy.microsoft.com/',
     lastUpdated: '2026-03-18',
   },
-];
-
-export const alerts = [
-  { id: 1, type: 'warning' as const, message: '⚠️ OpenAI updated Privacy Policy — Score dropping for EU Profiles', time: '2h ago' },
-  { id: 2, type: 'danger' as const, message: '🔴 Gemini data processing moved to US region — Sovereignty impact', time: '5h ago' },
-  { id: 3, type: 'safe' as const, message: '✅ Mistral AI achieved EU Data Residency certification', time: '1d ago' },
-  { id: 4, type: 'warning' as const, message: '⚠️ Meta Llama 4 license terms updated — Review required', time: '2d ago' },
-  { id: 5, type: 'safe' as const, message: '✅ Anthropic passed SOC2 Type II annual audit', time: '3d ago' },
-  { id: 6, type: 'danger' as const, message: '🔴 DeepSeek R1 flagged for unverified data handling in EU jurisdictions', time: '6h ago' },
-  { id: 7, type: 'warning' as const, message: '⚠️ Midjourney v7 training data sources under copyright review', time: '12h ago' },
-  { id: 8, type: 'safe' as const, message: '✅ GitHub Copilot Enterprise now offers data residency in EU', time: '1d ago' },
-  { id: 9, type: 'warning' as const, message: '⚠️ Sora 2 content safety filters bypass reported — Patch pending', time: '3h ago' },
-  { id: 10, type: 'safe' as const, message: '✅ Azure OpenAI achieves FedRAMP High authorization', time: '4d ago' },
-  { id: 11, type: 'danger' as const, message: '🔴 Qwen 3 data routing through non-EU servers detected', time: '8h ago' },
-  { id: 12, type: 'safe' as const, message: '✅ ElevenLabs adds HIPAA-compliant voice cloning tier', time: '2d ago' },
-  { id: 13, type: 'warning' as const, message: '⚠️ Grok 3 privacy policy lacks GDPR-specific commitments', time: '1d ago' },
-  { id: 14, type: 'safe' as const, message: '✅ Lovable achieves SOC2 Type II — EU data residency confirmed', time: '5d ago' },
 ];

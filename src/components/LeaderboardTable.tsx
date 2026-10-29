@@ -1,160 +1,145 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AITool, ComplianceProfile, calcScore, getScoreColor, costToRiskRatio } from '@/data/tools';
+import type { AITool } from '@/data/tools';
+import { usePosture } from '@/context/PostureContext';
 import { ScoreRing } from './ScoreRing';
 import { Sparkline } from './Sparkline';
-import { ToolRadarChart } from './ToolRadarChart';
-import { CheckCircle2, ExternalLink, ChevronDown } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import { FlashCell } from './FlashCell';
+import { StatusSelect } from './StatusSelect';
+import { ExpandedToolPanel } from './ExpandedToolPanel';
+import { CheckCircle2, ChevronDown, ShieldAlert } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface LeaderboardTableProps {
   tools: AITool[];
-  profile: ComplianceProfile;
   onCompare: (tool: AITool) => void;
   compareSelected: string[];
+  /** Metric key that drove the last profile shift, highlighted in the header. */
+  driver?: string | null;
 }
 
-export function LeaderboardTable({ tools, profile, onCompare, compareSelected }: LeaderboardTableProps) {
-  const [expanded, setExpanded] = useState<string | null>(null);
+const GRID = 'grid grid-cols-[1.75rem_minmax(9rem,1fr)_7.75rem_3.25rem_2.75rem_2.75rem_2.75rem_2.75rem_2.75rem_3.5rem_1rem] gap-2 items-center';
 
-  const sorted = [...tools].sort((a, b) => calcScore(b, profile).total - calcScore(a, profile).total);
+const COLS: { key: string; label: string; title: string }[] = [
+  { key: 'perf', label: 'Perf', title: 'Performance (accuracy, latency, throughput)' },
+  { key: 'sov', label: 'Sov', title: 'Data Sovereignty' },
+  { key: 'priv', label: 'Priv', title: 'Training Privacy' },
+  { key: 'sec', label: 'Sec', title: 'Security & Compliance' },
+  { key: 'owasp', label: 'OWASP', title: 'OWASP LLM Top 10 resilience' },
+];
+
+export function LeaderboardTable({ tools, onCompare, compareSelected, driver }: LeaderboardTableProps) {
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const { scores, statuses, setStatus } = usePosture();
+
+  const sorted = [...tools].sort((a, b) => scores[b.id].total - scores[a.id].total);
 
   return (
     <div className="glass-card-elevated overflow-hidden">
-      {/* Header */}
-      <div className="grid grid-cols-[2.5rem_1fr_5rem_5rem_5rem_5rem_5rem_3rem] gap-3 px-5 py-3 border-b border-border text-xs font-medium text-muted-foreground uppercase tracking-wider">
-        <span>#</span>
-        <span>Model</span>
-        <span className="text-center">Score</span>
-        <span className="text-center">Perf</span>
-        <span className="text-center">Trust</span>
-        <span className="text-center">Trend</span>
-        <span className="text-center">$/Risk</span>
-        <span></span>
-      </div>
+      <div className="overflow-x-auto">
+        <div className="min-w-[740px]">
+          <div className={cn(GRID, 'px-4 py-3 border-b border-border text-[10px] font-semibold text-muted-foreground uppercase tracking-wider')}>
+            <span>#</span>
+            <span>Model</span>
+            <span>Status</span>
+            <span className="text-center">Score</span>
+            {COLS.map((c) => (
+              <span
+                key={c.key}
+                title={c.title}
+                className={cn('text-center rounded transition-colors duration-500', driver === c.key && 'text-primary bg-primary/10')}
+              >
+                {c.label}
+              </span>
+            ))}
+            <span className="text-center">Trend</span>
+            <span />
+          </div>
 
-      {/* Rows */}
-      {sorted.map((tool, idx) => {
-        const scores = calcScore(tool, profile);
-        const scoreColor = getScoreColor(scores.total);
-        const isExpanded = expanded === tool.id;
+          {sorted.length === 0 && (
+            <div className="px-5 py-12 text-center text-sm text-muted-foreground">No tools in this view yet.</div>
+          )}
 
-        return (
-          <div key={tool.id}>
-            <motion.div
-              layout
-              className={`grid grid-cols-[2.5rem_1fr_5rem_5rem_5rem_5rem_5rem_3rem] gap-3 px-5 py-4 items-center cursor-pointer transition-colors hover:bg-secondary/40 ${
-                compareSelected.includes(tool.id) ? 'bg-primary/5 border-l-2 border-l-primary' : ''
-              }`}
-              onClick={() => setExpanded(isExpanded ? null : tool.id)}
-            >
-              <span className="font-mono text-sm text-muted-foreground">{idx + 1}</span>
-
-              <div className="flex items-center gap-3 min-w-0">
-                <span className="text-xl">{tool.logo}</span>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-foreground truncate">{tool.name}</span>
-                    {tool.verified && <CheckCircle2 className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
-                  </div>
-                  <span className="text-xs text-muted-foreground">{tool.provider}</span>
-                </div>
-              </div>
-
-              <div className="flex justify-center">
-                <ScoreRing score={scores.total} size={44} strokeWidth={3} />
-              </div>
-
-              <div className="text-center">
-                <span className="font-mono text-sm text-foreground">{scores.perfScore}</span>
-              </div>
-
-              <div className="text-center">
-                <span className={`font-mono text-sm ${scoreColor === 'safe' ? 'text-safe' : scoreColor === 'warning' ? 'text-warning' : 'text-danger'}`}>
-                  {scores.trustScore}
-                </span>
-              </div>
-
-              <div className="flex justify-center">
-                <Sparkline data={tool.trendData} />
-              </div>
-
-              <div className="text-center">
-                <span className="font-mono text-xs text-muted-foreground">${costToRiskRatio(tool, profile)}</span>
-              </div>
-
-              <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-            </motion.div>
-
-            <AnimatePresence>
-              {isExpanded && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className="overflow-hidden border-t border-border"
+          {sorted.map((tool, idx) => {
+            const s = scores[tool.id];
+            const isExpanded = expanded === tool.id;
+            const inCompare = compareSelected.includes(tool.id);
+            return (
+              <motion.div key={tool.id} layout transition={{ type: 'spring', stiffness: 500, damping: 40 }} className="border-b border-border/50 last:border-b-0">
+                <div
+                  onClick={() => setExpanded(isExpanded ? null : tool.id)}
+                  className={cn(
+                    GRID,
+                    'px-4 py-3 cursor-pointer transition-colors hover:bg-secondary/40 outline-none focus-visible:bg-secondary/40',
+                    inCompare && 'bg-primary/5 shadow-[inset_2px_0_0_hsl(var(--primary))]',
+                  )}
                 >
-                  <div className="px-5 py-5 flex flex-wrap gap-6 items-start bg-secondary/20">
-                    <ToolRadarChart tool={tool} profile={profile} size={180} />
+                  <span className="font-mono text-xs text-muted-foreground">{idx + 1}</span>
 
-                    <div className="flex flex-col gap-3 flex-1 min-w-[200px]">
-                      <h4 className="text-sm font-semibold text-foreground">Quick Risk Stats</h4>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Data Location</span>
-                          <Badge variant="outline" className="text-xs">{tool.trust.dataSovereignty}</Badge>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Training Data</span>
-                          <Badge variant="outline" className="text-xs">{tool.trust.trainingPrivacy}</Badge>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Latency</span>
-                          <span className="font-mono text-foreground">{tool.performance.latency}ms</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Cost/M tokens</span>
-                          <span className="font-mono text-foreground">${tool.costPerMToken}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">SOC2</span>
-                          <span>{tool.trust.soc2 ? '✅' : '❌'}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">HIPAA</span>
-                          <span>{tool.trust.hipaa ? '✅' : '❌'}</span>
-                        </div>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="text-lg leading-none">{tool.logo}</span>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-semibold text-sm text-foreground truncate">{tool.name}</span>
+                        {tool.verified && <CheckCircle2 className="w-3.5 h-3.5 text-primary shrink-0" aria-label="SOC2 documentation verified" />}
                       </div>
-                      <div className="flex gap-2 mt-2">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); onCompare(tool); }}
-                          className={`px-3 py-1.5 text-xs rounded-md font-medium transition-colors ${
-                            compareSelected.includes(tool.id)
-                              ? 'bg-primary text-primary-foreground'
-                              : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
-                          }`}
-                        >
-                          {compareSelected.includes(tool.id) ? 'Selected for VS' : 'Add to VS'}
-                        </button>
-                        <a
-                          href={tool.policyUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="px-3 py-1.5 text-xs rounded-md font-medium bg-secondary text-secondary-foreground hover:bg-secondary/80 inline-flex items-center gap-1"
-                        >
-                          Policy <ExternalLink className="w-3 h-3" />
-                        </a>
+                      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                        <span className="truncate">{tool.provider} · {tool.category}</span>
+                        {s.cvePenalty > 0 && (
+                          <span className="inline-flex items-center gap-0.5 rounded px-1 bg-danger/10 text-danger font-mono text-[10px] shrink-0" title="Trust reduced by live CVEs in this tool's dependency stack">
+                            <ShieldAlert className="w-2.5 h-2.5" />−{s.cvePenalty}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        );
-      })}
+
+                  <div>
+                    <StatusSelect value={statuses[tool.id]} onChange={(v) => setStatus(tool.id, v)} toolName={tool.name} />
+                  </div>
+
+                  <div className="flex justify-center">
+                    <ScoreRing score={s.total} size={40} strokeWidth={3} />
+                  </div>
+
+                  <FlashCell value={s.perfScore} className="text-foreground" />
+                  <FlashCell value={s.sovScore} className="text-foreground" />
+                  <FlashCell value={s.privScore} className="text-foreground" />
+                  <FlashCell value={s.secScore} className="text-foreground" />
+                  <FlashCell value={s.owaspScore} className="text-foreground" />
+
+                  <div className="flex justify-center">
+                    <Sparkline data={tool.trendData} />
+                  </div>
+
+                  <button
+                    aria-expanded={isExpanded}
+                    aria-label={`${isExpanded ? 'Hide' : 'Show'} details for ${tool.name}`}
+                    onClick={(e) => { e.stopPropagation(); setExpanded(isExpanded ? null : tool.id); }}
+                    className="rounded outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <ChevronDown className={cn('w-4 h-4 text-muted-foreground transition-transform', isExpanded && 'rotate-180')} />
+                  </button>
+                </div>
+
+                <AnimatePresence initial={false}>
+                  {isExpanded && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.28 }}
+                      className="overflow-hidden border-t border-border/60"
+                    >
+                      <ExpandedToolPanel tool={tool} score={s} onCompare={() => onCompare(tool)} inCompare={inCompare} />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
