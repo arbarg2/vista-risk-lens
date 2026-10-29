@@ -16,17 +16,18 @@ export interface BoardReportInput {
 }
 
 // PDF palette (RGB) mirrors the app's design tokens
-const C = {
-  bg: [12, 18, 32] as const,
-  ink: [226, 232, 240] as const,
-  muted: [120, 135, 160] as const,
-  safe: [16, 185, 129] as const,
-  warn: [245, 158, 11] as const,
-  danger: [220, 38, 38] as const,
-  dark: [30, 41, 59] as const,
+type RGB = [number, number, number];
+const C: Record<'bg' | 'ink' | 'muted' | 'safe' | 'warn' | 'danger' | 'dark', RGB> = {
+  bg: [12, 18, 32],
+  ink: [226, 232, 240],
+  muted: [120, 135, 160],
+  safe: [16, 185, 129],
+  warn: [245, 158, 11],
+  danger: [220, 38, 38],
+  dark: [30, 41, 59],
 };
 
-const toneFor = (n: number) => (n >= 80 ? C.safe : n >= 50 ? C.warn : C.danger);
+const toneFor = (n: number): RGB => (n >= 80 ? C.safe : n >= 50 ? C.warn : C.danger);
 
 export function buildExecutiveSummary(i: BoardReportInput): string {
   const approved = i.tools.filter((t) => i.statuses[t.id] === 'approved');
@@ -75,7 +76,7 @@ export function downloadBoardPdf(i: BoardReportInput) {
 
   // Grade card
   const g = i.posture;
-  const tone = g ? toneFor(g.score) : C.muted;
+  const tone: RGB = g ? toneFor(g.score) : C.muted;
   doc.setFillColor(...C.dark); doc.roundedRect(M, 96, W - M * 2, 120, 10, 10, 'F');
   doc.setDrawColor(...tone); doc.setLineWidth(2); doc.roundedRect(M + 18, 114, 84, 84, 10, 10, 'S');
   doc.setTextColor(...tone); doc.setFont('helvetica', 'bold'); doc.setFontSize(48);
