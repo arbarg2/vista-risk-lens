@@ -9,3 +9,4 @@
 - No synthetic data is shown by default; the only synthetic feed (Shadow-AI demo telemetry) is opt-in via a toggle and must stay labelled as demo data while on.
 - The dashboard is locked to the viewport (`h-screen overflow-hidden`); each pane and the leaderboard body scroll internally — never reintroduce page-level scrolling.
 - Catalog search and category-chip matching live in `src/lib/catalogFilter.ts` (tested in `catalogFilter.test.ts`) so filter rules stay out of components.
+- Dashboard view mode (Governance = full-width leaderboard + KPI cards, SecOps = telemetry split pane) is page-level state in `src/pages/Index.tsx`, persisted in localStorage — it's a per-user layout preference, not posture data.
