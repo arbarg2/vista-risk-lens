@@ -97,9 +97,9 @@ export function dependencyExposure(tool: { id: string; category: string }): Part
     return { vllm: 1, transformers: 0.8, pytorch: 0.8, ollama: 0.7, langchain: 0.5, torchserve: 0.2 };
   }
   if (selfHostable && tool.category === 'Image Gen') return { pytorch: 1, transformers: 0.6, torchserve: 0.4 };
-  if (selfHostable && tool.category === 'Audio') return { pytorch: 0.6, transformers: 0.5 };
+  if (selfHostable && tool.category === 'Audio') return { pytorch: 0.3, transformers: 0.25 };
   switch (tool.category) {
-    case 'Platform': return { langchain: 0.5, torchserve: 0.4, transformers: 0.3, vllm: 0.25 };
+    case 'Platform': return { langchain: 0.15, torchserve: 0.15, transformers: 0.1, vllm: 0.1 };
     case 'LLM':
     case 'Reasoning':
     case 'Embedding':
