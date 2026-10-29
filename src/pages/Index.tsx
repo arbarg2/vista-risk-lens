@@ -14,7 +14,7 @@ import { SystemStatus } from '@/components/SystemStatus';
 import { IncidentsSheet } from '@/components/IncidentsSheet';
 import { PolicyWeightsDrawer } from '@/components/PolicyWeightsDrawer';
 import { BoardReportDrawer } from '@/components/BoardReportDrawer';
-import { Search, Shield, X, Zap } from 'lucide-react';
+import { Search, ShieldCheck, X, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 type Filter = 'all' | ApprovalStatus;
@@ -142,12 +142,16 @@ const Index = () => {
       <header className="shrink-0 z-40 header-glass">
         <div className="max-w-[1600px] mx-auto px-4 py-3 flex flex-wrap items-center gap-3 justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center glow-safe">
-              <Shield className="w-5 h-5 text-primary" />
+            <div className="relative w-9 h-9 rounded-xl border border-primary/30 bg-gradient-to-br from-primary/20 to-background flex items-center justify-center shadow-[0_0_15px_hsl(var(--safe)/0.25)]">
+              <ShieldCheck className="w-5 h-5 text-primary" />
+              <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5" aria-label="Telemetry scanning live">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-safe opacity-75 animate-ping" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-safe border border-background" />
+              </span>
             </div>
             <div className="leading-tight">
-              <h1 className="text-lg font-bold gradient-text">Vigilance AI</h1>
-              <p className="text-[11px] text-muted-foreground">AI Security Posture Management</p>
+              <h1 className="text-lg font-bold tracking-tight text-foreground">Vigilance AI</h1>
+              <p className="text-xs font-medium tracking-wide text-muted-foreground">AI Trust &amp; Compliance Control Plane</p>
             </div>
           </div>
 
