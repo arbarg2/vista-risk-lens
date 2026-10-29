@@ -236,3 +236,150 @@ export function costToRisk(tool: AITool, score: ToolScore): string {
   if (score.total === 0) return '∞';
   return `$${((tool.costPerMToken / score.total) * 100).toFixed(2)}`;
 }
+
+// ─── Confidence rating ──────────────────────────────────
+export type Confidence = 'high' | 'medium' | 'low';
+export interface ConfidenceResult { level: Confidence; reasons: string[] }
+
+/** Retention windows at or above this are treated as "no bounded window published". */
+export const UNBOUNDED_RETENTION_DAYS = 365;
+
+/** Missing explicit retention / data-residency disclosures for a tool. */
+export function disclosureGaps(tool: AITool): string[] {
+  const en = getEnrichment(tool.id);
+  const gaps: string[] = [];
+  if (en.retentionDays >= UNBOUNDED_RETENTION_DAYS) gaps.push('No bounded data-retention window published');
+  if (tool.trust.dataSovereignty === 'Global' && en.hosting === 'Proprietary') gaps.push('No named hosting cloud or processing region');
+  return gaps;
+}
+
+/**
+ * HIGH   — audited SOC 2 documentation on file AND live CVE telemetry (NVD/OSV) active.
+ * MEDIUM — relies on vendor self-reported trust-center data (or CVE telemetry not active).
+ * LOW    — explicit retention or residency disclosures are missing.
+ */
+export function confidenceFor(tool: AITool, telemetryActive: boolean): ConfidenceResult {
+  const gaps = disclosureGaps(tool);
+  if (gaps.length) return { level: 'low', reasons: gaps };
+  const audited = tool.verified && tool.trust.soc2;
+  if (audited && telemetryActive) {
+    return { level: 'high', reasons: ['Audited SOC 2 documentation on file', 'Live CVE telemetry active (NVD / OSV.dev)'] };
+  }
+  const reasons: string[] = [];
+  if (!audited) reasons.push(tool.trust.soc2 ? 'SOC 2 claimed by vendor, report not verified' : 'Based on vendor self-reported trust-center data');
+  if (!telemetryActive) reasons.push('Live CVE telemetry not active');
+  return { level: 'medium', reasons };
+}
+
+// ─── Policy fit (mandatory rules per profile) ───────────
+export type RuleOutcome = 'pass' | 'conditional' | 'fail';
+export type RuleLevel = 'required' | 'recommended';
+export type PolicyFit = 'compliant' | 'conditional' | 'non-compliant';
+export interface PolicyCheck { id: string; label: string; level: RuleLevel; outcome: RuleOutcome; detail: string }
+
+type Rule = (tool: AITool, score?: ToolScore) => Omit<PolicyCheck, 'level'>;
+
+const residencyRule = (want: 'EU' | 'US', otherFails: boolean): Rule => (tool) => {
+  const sov = tool.trust.dataSovereignty;
+  const id = 'residency';
+  const label = `${want} data residency`;
+  if (sov === want) return { id, label, outcome: 'pass', detail: `Data processed in ${want}` };
+  if (sov === 'Global') return { id, label, outcome: 'conditional', detail: `Global routing — contract a ${want}-only region` };
+  return otherFails
+    ? { id, label, outcome: 'fail', detail: `Data processed in ${sov}` }
+    : { id, label, outcome: 'conditional', detail: `Processed in ${sov} — needs a lawful transfer basis (SCCs / DPF)` };
+};
+
+const trainingRule = (optOutOk: boolean): Rule => (tool) => {
+  const p = tool.trust.trainingPrivacy;
+  const id = 'training';
+  const label = 'No training on your data';
+  if (p === 'Never') return { id, label, outcome: 'pass', detail: 'Vendor never trains on customer data' };
+  if (p === 'Opt-out') return { id, label, outcome: optOutOk ? 'pass' : 'conditional', detail: 'Trains by default — opt-out must be enabled' };
+  return { id, label, outcome: 'fail', detail: 'Customer data is used for training' };
+};
+
+const retentionRule = (maxDays: number): Rule => (tool) => {
+  const d = getEnrichment(tool.id).retentionDays;
+  const id = 'retention';
+  const label = `Retention ≤ ${maxDays} days`;
+  const shown = d >= UNBOUNDED_RETENTION_DAYS ? 'no bounded window' : `${d}d default`;
+  if (d <= maxDays) return { id, label, outcome: 'pass', detail: d === 0 ? 'Zero-retention option available' : `${d}d default` };
+  if (d <= maxDays * 3 && d < UNBOUNDED_RETENTION_DAYS) return { id, label, outcome: 'conditional', detail: `${shown} — negotiate a shorter window` };
+  return { id, label, outcome: 'fail', detail: shown };
+};
+
+const zdrRule: Rule = (tool) => {
+  const d = getEnrichment(tool.id).retentionDays;
+  const id = 'zdr';
+  const label = 'Zero-data retention';
+  if (d === 0) return { id, label, outcome: 'pass', detail: 'Zero-retention option available' };
+  if (d <= 30) return { id, label, outcome: 'conditional', detail: `${d}d default — ZDR needs an enterprise agreement` };
+  return { id, label, outcome: 'fail', detail: d >= UNBOUNDED_RETENTION_DAYS ? 'No bounded window published' : `${d}d retention` };
+};
+
+const boolRule = (id: string, label: string, get: (t: AITool) => boolean, yes: string, no: string): Rule => (tool) =>
+  get(tool) ? { id, label, outcome: 'pass', detail: yes } : { id, label, outcome: 'fail', detail: no };
+
+const ssoRule = boolRule('sso', 'SSO / SAML', (t) => t.trust.sso, 'SSO supported', 'No SSO / SAML');
+const soc2Rule = boolRule('soc2', 'SOC 2 Type II', (t) => t.trust.soc2, 'SOC 2 report available', 'No SOC 2 report');
+const encRule = boolRule('enc', 'Encryption at rest', (t) => t.trust.encryptionAtRest, 'Encrypted at rest', 'No encryption-at-rest claim');
+const hipaaRule = boolRule('hipaa', 'HIPAA BAA', (t) => t.trust.hipaa, 'BAA available', 'No BAA');
+const ipRule = boolRule('ip', 'IP indemnification', (t) => getEnrichment(t.id).ipIndemnification, 'Indemnity offered', 'No indemnity');
+const art50Rule = boolRule('art50', 'AI content disclosure (EU AI Act Art. 50)', (t) => getEnrichment(t.id).transparency, 'Disclosed', 'Not disclosed');
+
+const cveRule: Rule = (_tool, score) => {
+  const p = score?.cvePenalty ?? 0;
+  const id = 'cve';
+  const label = 'No severe live CVE exposure';
+  if (p < 5) return { id, label, outcome: 'pass', detail: p ? `Minor exposure (−${p} trust)` : 'No matching advisories' };
+  if (p < 15) return { id, label, outcome: 'conditional', detail: `−${p} trust — patch dependency stack` };
+  return { id, label, outcome: 'fail', detail: `−${p} trust — critical exposure` };
+};
+
+const PROFILE_RULES: Record<ComplianceProfile, [RuleLevel, Rule][]> = {
+  'eu-enterprise': [
+    ['required', residencyRule('EU', false)],
+    ['required', trainingRule(false)],
+    ['required', retentionRule(30)],
+    ['required', ssoRule],
+    ['recommended', soc2Rule],
+    ['recommended', art50Rule],
+    ['recommended', cveRule],
+  ],
+  'us-fedramp': [
+    ['required', residencyRule('US', true)],
+    ['required', zdrRule],
+    ['required', trainingRule(false)],
+    ['required', soc2Rule],
+    ['required', ssoRule],
+    ['required', encRule],
+    ['recommended', hipaaRule],
+    ['recommended', cveRule],
+  ],
+  'global-startup': [
+    ['required', encRule],
+    ['required', trainingRule(true)],
+    ['recommended', soc2Rule],
+    ['recommended', ipRule],
+    ['recommended', retentionRule(90)],
+    ['recommended', cveRule],
+  ],
+  personal: [
+    ['required', encRule],
+    ['recommended', trainingRule(true)],
+    ['recommended', retentionRule(30)],
+    ['recommended', cveRule],
+  ],
+};
+
+export function policyChecks(tool: AITool, profile: ComplianceProfile, score?: ToolScore): PolicyCheck[] {
+  return PROFILE_RULES[profile].map(([level, rule]) => ({ ...rule(tool, score), level }));
+}
+
+/** Any failed required rule → non-compliant; any other gap → conditional; otherwise compliant. */
+export function policyFit(checks: PolicyCheck[]): PolicyFit {
+  if (checks.some((c) => c.level === 'required' && c.outcome === 'fail')) return 'non-compliant';
+  if (checks.some((c) => c.outcome !== 'pass')) return 'conditional';
+  return 'compliant';
+}

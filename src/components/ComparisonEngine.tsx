@@ -4,6 +4,8 @@ import { usePosture } from '@/context/PostureContext';
 import { PROFILE_THRESHOLD } from '@/lib/posture';
 import { ToolRadarChart } from './ToolRadarChart';
 import { ScoreRing } from './ScoreRing';
+import { ConfidenceBadge, PolicyFitBadge } from './CredibilityBadges';
+import { PROFILE_LABELS } from '@/lib/posture';
 import { X } from 'lucide-react';
 
 function GapBar({ label, a, b }: { label: string; a: number; b: number }) {
@@ -26,7 +28,7 @@ function GapBar({ label, a, b }: { label: string; a: number; b: number }) {
 }
 
 export function ComparisonEngine({ tools: [a, b], onClose, embedded = false }: { tools: [AITool, AITool]; onClose?: () => void; embedded?: boolean }) {
-  const { scores, profile } = usePosture();
+  const { scores, profile, confidence, policy } = usePosture();
   const sa = scores[a.id];
   const sb = scores[b.id];
 
@@ -56,12 +58,20 @@ export function ComparisonEngine({ tools: [a, b], onClose, embedded = false }: {
               <span className="text-2xl">{a.logo}</span>
               <span className="font-semibold text-sm text-safe">{a.name}</span>
               <ScoreRing score={sa.total} size={64} strokeWidth={4} />
+              <div className="flex flex-wrap justify-center gap-1">
+                <ConfidenceBadge result={confidence[a.id]} compact />
+                <PolicyFitBadge fit={policy[a.id].fit} checks={policy[a.id].checks} profileLabel={PROFILE_LABELS[profile]} />
+              </div>
             </div>
             <span className="text-2xl font-black text-muted-foreground">VS</span>
             <div className="flex flex-col items-center gap-2 text-center">
               <span className="text-2xl">{b.logo}</span>
               <span className="font-semibold text-sm text-warning">{b.name}</span>
               <ScoreRing score={sb.total} size={64} strokeWidth={4} />
+              <div className="flex flex-wrap justify-center gap-1">
+                <ConfidenceBadge result={confidence[b.id]} compact />
+                <PolicyFitBadge fit={policy[b.id].fit} checks={policy[b.id].checks} profileLabel={PROFILE_LABELS[profile]} />
+              </div>
             </div>
           </div>
           <div className="flex flex-col gap-2.5">
