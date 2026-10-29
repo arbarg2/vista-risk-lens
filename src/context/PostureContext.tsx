@@ -201,7 +201,7 @@ export function PostureProvider({ children }: { children: ReactNode }) {
 
   const telemetryActive = useMemo(() => {
     const ok = (st: SourceState) => st === 'live' || st === 'cached';
-    return (ok(sources.NVD.state) || ok(sources.OSV.state)) && lastSync !== null && Date.now() - lastSync < 86_400_000;
+    return (ok(sources.NVD.state) || ok(sources.OSV.state)) && (lastSync === null || Date.now() - lastSync < 86_400_000);
   }, [sources, lastSync]);
   const confidence = useMemo(() => {
     const out: Record<string, ConfidenceResult> = {};
