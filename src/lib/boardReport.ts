@@ -36,7 +36,7 @@ export function buildExecutiveSummary(i: BoardReportInput): string {
   const top = [...approved].sort((a, b) => i.scores[b.id].total - i.scores[a.id].total).slice(0, 5);
   const crit = i.threats.filter((t) => t.score >= 9).length;
   return [
-    `# Vigilance AI — Board AI Risk Posture`,
+    `# VigilAI — Board AI Risk Posture`,
     `Generated ${new Date().toLocaleString()} · Profile: ${PROFILE_LABELS[i.profile]}${i.customWeights ? ' (custom policy weights)' : ''}`,
     ``,
     `## Approved Posture: ${i.posture ? `${i.posture.grade} (${i.posture.score}/100)` : 'N/A — no approved tools'}`,
@@ -70,7 +70,7 @@ export function downloadBoardPdf(i: BoardReportInput) {
 
   // Header
   doc.setTextColor(...C.safe); doc.setFont('helvetica', 'bold'); doc.setFontSize(22);
-  doc.text('Vigilance AI', M, 56);
+  doc.text('VigilAI', M, 56);
   doc.setTextColor(...C.muted); doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
   doc.text(`Board-Ready AI Risk Posture · ${PROFILE_LABELS[i.profile]}${i.customWeights ? ' (custom weights)' : ''} · ${new Date().toLocaleDateString()}`, M, 74);
 
@@ -162,7 +162,7 @@ export function downloadBoardPdf(i: BoardReportInput) {
   for (let p = 1; p <= pages; p++) {
     doc.setPage(p);
     doc.setFontSize(7.5); doc.setTextColor(...C.muted);
-    doc.text('Vigilance AI · Readiness figures are directional heuristics, not legal advice · Sources: vendor policies, NVD, OSV.dev', M, H - 24);
+    doc.text('VigilAI · Readiness figures are directional heuristics, not legal advice · Sources: vendor policies, NVD, OSV.dev', M, H - 24);
     doc.text(`${p}/${pages}`, W - M, H - 24, { align: 'right' });
   }
 
