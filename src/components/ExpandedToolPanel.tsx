@@ -103,7 +103,7 @@ export function ExpandedToolPanel({ tool, score, onCompare, inCompare }: { tool:
     toast.success(`AIBOM exported (${fmt === 'cyclonedx' ? 'CycloneDX 1.6' : 'SPDX 2.3'})`, { description: tool.name });
   };
 
-  const sourceRow = (key: 'NVD' | 'OSV', name: string) => {
+  const sourceRow = (key: 'NVD' | 'OSV' | 'KEV', name: string) => {
     const st = sources[key];
     const m = SOURCE_LABEL[st.state];
     return (
