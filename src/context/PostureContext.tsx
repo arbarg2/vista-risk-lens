@@ -278,8 +278,10 @@ export function PostureProvider({ children }: { children: ReactNode }) {
   // Drain the line queue for a streaming terminal effect
   useEffect(() => {
     const iv = setInterval(() => {
-      const next = queue.current.shift();
-      if (next) setFeed((f) => [...f.slice(-150), { ...next, ts: Date.now() }]);
+      // Stream one line at a time, but catch up quickly when a sync floods the queue
+      const n = Math.max(1, Math.ceil(queue.current.length / 8));
+      const batch = queue.current.splice(0, n);
+      if (batch.length) setFeed((f) => [...f, ...batch.map((l) => ({ ...l, ts: Date.now() }))].slice(-200));
     }, 380);
     return () => clearInterval(iv);
   }, []);
