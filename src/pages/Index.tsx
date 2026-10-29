@@ -105,7 +105,7 @@ const Index = () => {
         <div className="max-w-[1600px] mx-auto px-4 py-3 flex flex-wrap items-center gap-3 justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center glow-safe">
-              <Shield className="w-4.5 h-4.5 text-primary" />
+              <Shield className="w-5 h-5 text-primary" />
             </div>
             <div className="leading-tight">
               <h1 className="text-lg font-bold gradient-text">Vigilance AI</h1>
