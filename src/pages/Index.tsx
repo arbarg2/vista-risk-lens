@@ -142,7 +142,7 @@ const Index = () => {
       <header className="shrink-0 z-40 header-glass">
         <div className="max-w-[1600px] mx-auto px-4 py-3 flex flex-wrap items-center gap-3 justify-between">
           <div className="flex items-center gap-3">
-            <div className="relative w-9 h-9 rounded-xl border border-primary/30 bg-gradient-to-br from-primary/20 to-background flex items-center justify-center shadow-[0_0_15px_hsl(var(--safe)/0.25)]">
+            <div className="relative w-9 h-9 rounded-xl border border-primary/30 bg-card flex items-center justify-center shadow-[0_0_15px_hsl(var(--safe)/0.2)]">
               <ShieldCheck className="w-5 h-5 text-primary" />
               <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5" aria-label="Telemetry scanning live">
                 <span className="absolute inline-flex h-full w-full rounded-full bg-safe opacity-75 animate-ping" />
@@ -150,8 +150,8 @@ const Index = () => {
               </span>
             </div>
             <div className="leading-tight">
-              <h1 className="text-lg font-bold tracking-tight text-foreground">Vigilance AI</h1>
-              <p className="text-xs font-medium tracking-wide text-muted-foreground">AI Trust &amp; Compliance Control Plane</p>
+              <h1 className="text-lg font-bold tracking-tight text-foreground">Vigil<span className="font-extrabold gradient-text">AI</span></h1>
+              <p className="text-xs font-medium tracking-wide text-muted-foreground">Enterprise AI Control Plane</p>
             </div>
           </div>
 
@@ -298,7 +298,7 @@ const Index = () => {
 
       <footer className="shrink-0 border-t border-border">
         <div className="max-w-[1600px] mx-auto px-4 py-1.5 text-center text-[10px] text-muted-foreground truncate">
-          Vigilance AI — Tool posture from public vendor policies; vulnerabilities live from NVD &amp; OSV.dev. Telemetry and policy-watch events are simulated.
+          VigilAI — Tool posture from public vendor policies; vulnerabilities live from NVD &amp; OSV.dev. Telemetry and policy-watch events are simulated.
         </div>
       </footer>
     </div>
