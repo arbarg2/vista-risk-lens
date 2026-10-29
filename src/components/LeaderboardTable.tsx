@@ -42,15 +42,15 @@ export function LeaderboardTable({ tools, onCompare, compareSelected, driver, cl
     <div className={cn('glass-card-elevated overflow-hidden flex flex-col min-h-0', className)}>
       <div className="flex-1 min-h-0 overflow-auto overscroll-contain">
         <div className="min-w-[760px]">
-          <div className="sticky top-0 z-20 bg-card/95 backdrop-blur-md border-b border-border">
+          <div className="sticky top-0 z-20 bg-card border-b border-border">
           <div className={cn(GRID, 'px-4 pt-2.5 text-[9px] font-semibold uppercase tracking-wider')} aria-hidden>
             <span className="col-span-4" />
             <div className="flex flex-col items-center gap-1 text-primary" title="Share of the total score from Performance under the current policy">
-              <span className="leading-none">Performance <span className="font-mono">{perfPct}%</span></span>
+              <span className="leading-none whitespace-nowrap">Performance <span className="font-mono">{perfPct}%</span></span>
               <span className="w-full h-0.5 rounded-full bg-primary/70" />
             </div>
             <div className="col-span-4 flex flex-col items-center gap-1 text-safe" title="Share of the total score from Trust metrics under the current policy">
-              <span className="leading-none">Trust Metrics <span className="font-mono">{trustPct}%</span></span>
+              <span className="leading-none whitespace-nowrap">Trust Metrics <span className="font-mono">{trustPct}%</span></span>
               <span className="w-full h-0.5 rounded-full bg-safe/40" />
             </div>
             <span className="col-span-2" />

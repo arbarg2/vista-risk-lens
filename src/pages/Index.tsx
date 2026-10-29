@@ -193,7 +193,7 @@ const Index = () => {
         </div>
       </header>
 
-      <main className="flex-1 min-h-0 w-full max-w-[1600px] mx-auto px-4 py-3 grid gap-4 grid-rows-[minmax(0,2fr)_minmax(0,3fr)] lg:grid-rows-1 lg:grid-cols-[minmax(0,35fr)_minmax(0,65fr)]">
+      <main className="flex-1 min-h-0 w-full max-w-[1600px] mx-auto px-4 py-3 grid gap-4 grid-rows-[minmax(0,1fr)_minmax(0,2.2fr)] lg:grid-rows-1 lg:grid-cols-[minmax(0,35fr)_minmax(0,65fr)]">
         {/* Left pane — threat intel & telemetry */}
         <aside className="flex flex-col gap-3 min-h-0 overflow-y-auto lg:overflow-hidden">
           <div className="shrink-0"><SystemStatus /></div>
@@ -245,7 +245,7 @@ const Index = () => {
               </button>
             ))}
           </div>
-            <div className="relative ml-auto w-full sm:w-80 mb-1.5">
+            <div className="relative ml-auto w-full sm:w-64 xl:w-80 mb-1.5">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
               <input
                 ref={searchRef}
