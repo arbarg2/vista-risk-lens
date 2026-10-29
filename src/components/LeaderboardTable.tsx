@@ -64,7 +64,7 @@ export function LeaderboardTable({ tools, onCompare, compareSelected, driver, cl
               <span
                 key={c.key}
                 title={c.title}
-                className={cn('text-center rounded transition-colors duration-500', c.key !== 'perf' && 'border-l border-border/60 first-of-type:border-l-0', driver === c.key && 'text-primary bg-primary/10')}
+                className={cn('text-center rounded transition-colors duration-500', c.key === 'sov' && 'border-l border-border/60', driver === c.key && 'text-primary bg-primary/10')}
               >
                 {c.label}
               </span>
